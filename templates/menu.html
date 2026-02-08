@@ -1,0 +1,336 @@
+{% extends 'base.html' %}
+
+{% block title %}Interactive Menu & Ordering{% endblock %}
+
+{% block content %}
+<div class="menu-container">
+    <!-- Header -->
+    <div class="menu-header mb-5">
+        <h1 class="mb-2">
+            <i class="fas fa-utensils me-3"></i>Explore Our Menu
+        </h1>
+        <p class="text-muted">Discover delicious cuisines from around the world</p>
+        {% if cart_count %}
+        <div class="cart-indicator mt-3">
+            <span class="badge bg-danger fs-6">
+                <i class="fas fa-shopping-cart me-2"></i>{{ cart_count }} items in cart
+            </span>
+        </div>
+        {% endif %}
+    </div>
+
+    <!-- Category Filter Section -->
+    <div class="category-section mb-5">
+        <h3 class="mb-4 category-title">
+            <i class="fas fa-th me-2"></i>Select Cuisine
+        </h3>
+        <div class="category-grid">
+            <a href="{% url 'menu' %}" class="category-card {% if not selected_category %}active{% endif %}">
+                <div class="category-icon">
+                    <i class="fas fa-star fa-2x"></i>
+                </div>
+                <span>All Items</span>
+            </a>
+            {% for category_code, category_display in categories %}
+            <a href="{% url 'menu' %}?category={{ category_code }}" class="category-card {% if selected_category == category_code %}active{% endif %}">
+                <div class="category-icon">
+                    {% if category_code == 'Asian' %}<i class="fas fa-yin-yang fa-2x"></i>
+                    {% elif category_code == 'Mexican' %}<i class="fas fa-pepper-hot fa-2x"></i>
+                    {% elif category_code == 'Italian' %}<i class="fas fa-pizza-slice fa-2x"></i>
+                    {% elif category_code == 'American' %}<i class="fas fa-hamburger fa-2x"></i>
+                    {% elif category_code == 'Middle Eastern' %}<i class="fas fa-falafel fa-2x"></i>
+                    {% elif category_code == 'Indian' %}<i class="fas fa-fire fa-2x"></i>
+                    {% elif category_code == 'Desserts' %}<i class="fas fa-ice-cream fa-2x"></i>
+                    {% elif category_code == 'Beverages' %}<i class="fas fa-wine-glass-alt fa-2x"></i>
+                    {% else %}<i class="fas fa-leaf fa-2x"></i>
+                    {% endif %}
+                </div>
+                <span>{{ category_display }}</span>
+            </a>
+            {% endfor %}
+        </div>
+    </div>
+
+    <!-- Main Content Row -->
+    <div class="row">
+        <!-- Menu Items Section -->
+        <div class="col-lg-8">
+            <!-- Items Grid -->
+            <div class="items-section">
+                {% if selected_category %}
+                <h4 class="mb-4 section-title">
+                    <i class="fas fa-arrow-right me-2"></i>{{ selected_category }} Specialties
+                </h4>
+                {% else %}
+                <h4 class="mb-4 section-title">
+                    <i class="fas fa-arrow-right me-2"></i>All Items
+                </h4>
+                {% endif %}
+
+                {% if menu_items %}
+                <div class="menu-grid">
+                    {% for item in menu_items %}
+                    <div class="menu-card" data-item-id="{{ item.id }}">
+                        <div class="menu-card-image">
+                            <img src="{{ item.image }}" alt="{{ item.name }}" 
+                                 onerror="this.src='https://via.placeholder.com/300x200?text={{ item.name }}'">
+                            <div class="menu-card-category">
+                                <span class="badge bg-primary">{{ item.get_category_display }}</span>
+                            </div>
+                        </div>
+                        <div class="menu-card-body">
+                            <h5 class="menu-card-title">{{ item.name }}</h5>
+                            <p class="menu-card-description">{{ item.description|default:"Delicious and authentic." }}</p>
+                            <div class="menu-card-footer">
+                                <span class="price badge bg-success fs-5">₹{{ item.price }}</span>
+                                <form method="POST" action="{% url 'add_to_cart' %}" class="add-to-cart-form d-inline">
+                                    {% csrf_token %}
+                                    <input type="hidden" name="item_id" value="{{ item.id }}">
+                                    <select name="quantity" class="qty-select">
+                                        <option value="1">1</option>
+                                        <option value="2">2</option>
+                                        <option value="3">3</option>
+                                        <option value="4">4</option>
+                                        <option value="5">5</option>
+                                    </select>
+                                    <button type="submit" class="btn btn-sm btn-primary">
+                                        <i class="fas fa-cart-plus me-1"></i>Add
+                                    </button>
+                                </form>
+                            </div>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+                {% else %}
+                <div class="alert alert-info text-center py-5">
+                    <i class="fas fa-info-circle me-2 fa-2x"></i>
+                    <p>No items found in this category.</p>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+
+        <!-- Cart Section (Sidebar) -->
+        <div class="col-lg-4">
+            <div class="cart-panel sticky-top" style="top: 80px;">
+                <div class="cart-header">
+                    <h5 class="mb-0">
+                        <i class="fas fa-shopping-bag me-2"></i>Your Cart
+                        {% if cart %}
+                        <span class="badge bg-danger float-end">{{ cart|length }}</span>
+                        {% endif %}
+                    </h5>
+                </div>
+
+                <div class="cart-body">
+                    {% if cart %}
+                    <!-- Cart Items List -->
+                    <div class="cart-items-list mb-3">
+                        {% for item in cart %}
+                        <div class="cart-item" data-cart-item-id="{{ item.id }}">
+                            <div class="cart-item-info">
+                                <strong>{{ item.name }}</strong>
+                                <small class="text-muted d-block">₹{{ item.price }} each</small>
+                            </div>
+                            
+                            <div class="cart-item-controls">
+                                <div class="qty-controls">
+                                    <button class="qty-btn minus-btn" onclick="updateQuantity({{ item.id }}, -1)">−</button>
+                                    <span class="qty-display">{{ item.qty }}</span>
+                                    <button class="qty-btn plus-btn" onclick="updateQuantity({{ item.id }}, 1)">+</button>
+                                </div>
+                                <span class="cart-item-total">₹{{ item.subtotal|floatformat:2 }}</span>
+                            </div>
+                            
+                            <button class="remove-btn" onclick="removeFromCart({{ item.id }})">
+                                <i class="fas fa-trash-alt"></i>
+                            </button>
+                        </div>
+                        {% endfor %}
+                    </div>
+
+                    <!-- Cart Summary -->
+                    <div class="cart-summary">
+                        <div class="summary-row">
+                            <span>Subtotal:</span>
+                            <strong class="text-primary">₹{{ total|floatformat:2 }}</strong>
+                        </div>
+                        <div class="summary-row">
+                            <span>Tax (18%):</span>
+                            <small class="text-muted">₹{{ tax|floatformat:2 }}</small>
+                        </div>
+                        <div class="summary-row border-top pt-2 mt-2">
+                            <strong>Total:</strong>
+                            <strong class="text-success fs-5">₹{{ total_with_tax|floatformat:2 }}</strong>
+                        </div>
+                    </div>
+
+                    <!-- Checkout Section -->
+                    <form method="POST" action="{% url 'place_order' %}" class="mt-4">
+                        {% csrf_token %}
+                        <div class="mb-3">
+                            <label class="form-label small fw-bold">Order Type</label>
+                            <select name="order_type" class="form-select form-select-sm" required>
+                                <option value="Dine-in">🪑 Dine-in</option>
+                                <option value="Delivery">🚗 Home Delivery</option>
+                                <option value="Pickup">📦 Self Pickup</option>
+                            </select>
+                        </div>
+
+                        <div class="mb-3" id="table-select-group" style="display: none;">
+                            <label class="form-label small fw-bold">Select Table</label>
+                            <select name="table" class="form-select form-select-sm">
+                                <option value="">Choose a table</option>
+                                {% for table in tables %}
+                                <option value="{{ table.id }}">Table {{ table.table_number }} ({{ table.capacity }} seats)</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="form-label small fw-bold">Payment Method</label>
+                            <select name="payment_method" class="form-select form-select-sm" required>
+                                <option value="Card">💳 Card/Debit</option>
+                                <option value="UPI">📱 UPI Wallet</option>
+                                <option value="Cash">💵 Cash</option>
+                            </select>
+                        </div>
+
+                        <button type="submit" class="btn btn-success w-100 mb-2 fw-bold">
+                            <i class="fas fa-credit-card me-2"></i>Checkout & Pay
+                        </button>
+                    </form>
+
+                    <a href="{% url 'clear_cart' %}" class="btn btn-outline-danger btn-sm w-100">
+                        <i class="fas fa-trash me-1"></i>Clear Cart
+                    </a>
+                    {% else %}
+                    <!-- Empty Cart -->
+                    <div class="empty-cart">
+                        <i class="fas fa-shopping-bag fa-4x text-muted opacity-25"></i>
+                        <p class="text-muted mt-3 fw-bold">Your cart is empty</p>
+                        <p class="small text-muted">Browse items and add them to get started!</p>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modified Messages Display -->
+{% if messages %}
+<div class="toast-container position-fixed top-0 end-0 p-3">
+    {% for message in messages %}
+    <div class="toast show" role="alert">
+        <div class="toast-header">
+            {% if message.tags == 'error' %}
+                <i class="fas fa-exclamation-circle text-danger me-2"></i>
+            {% elif message.tags == 'success' %}
+                <i class="fas fa-check-circle text-success me-2"></i>
+            {% else %}
+                <i class="fas fa-info-circle text-info me-2"></i>
+            {% endif %}
+            <strong class="me-auto">{{ message.tags|title }}</strong>
+            <button type="button" class="btn-close" data-bs-dismiss="toast"></button>
+        </div>
+        <div class="toast-body">
+            {{ message }}
+        </div>
+    </div>
+    {% endfor %}
+</div>
+{% endif %}
+
+<script>
+// Show/hide table selection based on order type
+document.querySelector('select[name="order_type"]').addEventListener('change', function() {
+    const tableGroup = document.getElementById('table-select-group');
+    tableGroup.style.display = this.value === 'Dine-in' ? 'block' : 'none';
+});
+
+// Initialize on page load
+document.addEventListener('DOMContentLoaded', function() {
+    const orderType = document.querySelector('select[name="order_type"]').value;
+    const tableGroup = document.getElementById('table-select-group');
+    tableGroup.style.display = orderType === 'Dine-in' ? 'block' : 'none';
+});
+
+// Update quantity via AJAX
+async function updateQuantity(itemId, change) {
+    try {
+        const response = await fetch('/api/update-cart-quantity/', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': getCookie('csrftoken'),
+            },
+            body: JSON.stringify({
+                item_id: itemId,
+                change: change
+            })
+        });
+        
+        if (response.ok) {
+            location.reload(); // Refresh to show updated cart
+        } else {
+            alert('Failed to update quantity');
+        }
+    } catch (error) {
+        console.error('Error:', error);
+    }
+}
+
+// Remove item from cart via AJAX
+async function removeFromCart(itemId) {
+    if (confirm('Remove this item from cart?')) {
+        try {
+            const response = await fetch('/api/remove-from-cart/', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': getCookie('csrftoken'),
+                },
+                body: JSON.stringify({
+                    item_id: itemId
+                })
+            });
+            
+            if (response.ok) {
+                location.reload(); // Refresh to show updated cart
+            } else {
+                alert('Failed to remove item');
+            }
+        } catch (error) {
+            console.error('Error:', error);
+        }
+    }
+}
+
+// Get CSRF token from cookies
+function getCookie(name) {
+    let cookieValue = null;
+    if (document.cookie && document.cookie !== '') {
+        const cookies = document.cookie.split(';');
+        for (let i = 0; i < cookies.length; i++) {
+            const cookie = cookies[i].trim();
+            if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                break;
+            }
+        }
+    }
+    return cookieValue;
+}
+
+// Smooth scroll on category change
+document.querySelectorAll('.category-card').forEach(card => {
+    card.addEventListener('click', function() {
+        document.querySelectorAll('.category-card').forEach(c => c.classList.remove('active'));
+        this.classList.add('active');
+    });
+});
+</script>
+
+{% endblock %}

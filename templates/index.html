@@ -1,0 +1,136 @@
+{% extends 'base.html' %}
+
+{% block title %}Home{% endblock %}
+
+{% block content %}
+<div class="jumbotron bg-light rounded-lg p-5 mb-5">
+    <h1 class="display-4 fw-bold mb-3">Welcome to SmartDine</h1>
+    <p class="lead text-muted mb-4">Experience seamless dining with digital ordering and smart reservations.</p>
+    <hr class="my-4">
+    <p class="mb-4">Smart dining management system for restaurants.</p>
+    <a class="btn btn-primary btn-lg me-2" href="{% url 'menu' %}" role="button">
+        <i class="fas fa-utensils me-2"></i>Order Now
+    </a>
+    <a class="btn btn-outline-primary btn-lg" href="{% url 'reservations' %}" role="button">
+        <i class="fas fa-calendar me-2"></i>Book a Table
+    </a>
+</div>
+
+<div class="row g-4 mb-5">
+    <div class="col-md-3">
+        <div class="card text-center h-100 border-0">
+            <div class="card-body">
+                <i class="fas fa-box-open fa-3x text-primary mb-3"></i>
+                <h5 class="card-title">Orders</h5>
+                <p class="display-5 fw-bold text-primary">{{ total_orders }}</p>
+                <small class="text-muted">Total orders placed</small>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card text-center h-100 border-0">
+            <div class="card-body">
+                <i class="fas fa-calendar-check fa-3x text-success mb-3"></i>
+                <h5 class="card-title">Reservations</h5>
+                <p class="display-5 fw-bold text-success">{{ total_reservations }}</p>
+                <small class="text-muted">Total reservations</small>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card text-center h-100 border-0">
+            <div class="card-body">
+                <i class="fas fa-chair fa-3x text-info mb-3"></i>
+                <h5 class="card-title">Tables</h5>
+                <p class="display-5 fw-bold text-info">{{ available_tables }}</p>
+                <small class="text-muted">Available tables</small>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card text-center h-100 border-0">
+            <div class="card-body">
+                <i class="fas fa-star fa-3x text-warning mb-3"></i>
+                <h5 class="card-title">Rating</h5>
+                <p class="display-5 fw-bold text-warning">4.8/5</p>
+                <small class="text-muted">Customer satisfaction</small>
+            </div>
+        </div>
+    </div>
+</div>
+
+<section>
+    <h2 class="section-title">How SmartDine Works</h2>
+    <div class="row g-4">
+        <div class="col-md-6">
+            <div class="card h-100">
+                <div class="card-body">
+                    <div class="display-5 text-primary mb-3">01</div>
+                    <h5 class="card-title">Browse Menu</h5>
+                    <p class="card-text">
+                        Explore our delicious menu items with beautiful images and detailed descriptions. 
+                        Filter by category to find exactly what you're looking for.
+                    </p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-6">
+            <div class="card h-100">
+                <div class="card-body">
+                    <div class="display-5 text-primary mb-3">02</div>
+                    <h5 class="card-title">Place Order</h5>
+                    <p class="card-text">
+                        Add items to your cart, select your preferred order type (Dine-in, Delivery, or Pickup), 
+                        and proceed to checkout with your preferred payment method.
+                    </p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-6">
+            <div class="card h-100">
+                <div class="card-body">
+                    <div class="display-5 text-primary mb-3">03</div>
+                    <h5 class="card-title">Make Reservation</h5>
+                    <p class="card-text">
+                        Book a table in advance for your special occasions. Choose your date, time, and number of guests.
+                        Our system will find the best available table for you.
+                    </p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-6">
+            <div class="card h-100">
+                <div class="card-body">
+                    <div class="display-5 text-primary mb-3">04</div>
+                    <h5 class="card-title">Track Status</h5>
+                    <p class="card-text">
+                        Monitor your order status from preparation to delivery. Receive real-time updates 
+                        and know exactly when your food will be ready.
+                    </p>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<div class="mt-5 p-5 bg-primary text-white rounded-lg">
+    <h2 class="mb-3">Featured Services</h2>
+    <div class="row">
+        <div class="col-md-4 text-center mb-3 mb-md-0">
+            <i class="fas fa-clock fa-2x mb-2"></i>
+            <h5>Fast Service</h5>
+            <p>Orders prepared quickly and efficiently</p>
+        </div>
+        <div class="col-md-4 text-center mb-3 mb-md-0">
+            <i class="fas fa-lock fa-2x mb-2"></i>
+            <h5>Secure Payments</h5>
+            <p>All transactions are safe and encrypted</p>
+        </div>
+        <div class="col-md-4 text-center">
+            <i class="fas fa-headset fa-2x mb-2"></i>
+            <h5>24/7 Support</h5>
+            <p>Customer support available round the clock</p>
+        </div>
+    </div>
+</div>
+{% endblock %}
