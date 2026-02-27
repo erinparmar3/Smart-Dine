@@ -1,0 +1,244 @@
+{% extends 'base.html' %}
+{% block title %}Checkout - SmartDine{% endblock %}
+
+{% block extra_css %}
+<style>
+    .checkout-wrapper {
+        padding: 4rem 0 8rem;
+        background-color: var(--bg-main);
+    }
+
+    .minimal-card {
+        background: var(--bg-main);
+        border: 1px solid var(--border-color);
+        padding: 2.5rem;
+        border-radius: 0;
+    }
+
+    .order-item {
+        border-bottom: 1px solid var(--border-color);
+        padding-bottom: 1.5rem;
+        margin-bottom: 1.5rem;
+    }
+
+    .order-item:last-child {
+        border-bottom: none;
+        padding-bottom: 0;
+        margin-bottom: 0;
+    }
+
+    .payment-option input[type="radio"] {
+        display: none;
+    }
+
+    .payment-option label {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        padding: 1.5rem;
+        border: 1px solid var(--border-color);
+        background: var(--bg-main);
+        cursor: pointer;
+        transition: all 0.2s ease;
+        height: 100%;
+        color: var(--text-muted);
+        border-radius: 0;
+    }
+
+    .payment-option label i {
+        font-size: 1.5rem;
+        margin-bottom: 1rem;
+        color: var(--text-muted);
+        transition: color 0.2s ease;
+    }
+
+    .payment-option input[type="radio"]:checked+label {
+        background: var(--bg-alt);
+        border-color: var(--text-main);
+        color: var(--text-main);
+    }
+
+    .payment-option input[type="radio"]:checked+label i {
+        color: var(--text-main);
+    }
+
+    .form-control {
+        background: var(--bg-alt);
+        border: 1px solid transparent;
+        color: var(--text-main);
+        padding: 0.8rem 1rem;
+        border-radius: 0;
+    }
+
+    .form-control:focus {
+        background: var(--bg-main);
+        border-color: var(--text-main);
+        box-shadow: none;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="checkout-wrapper fade-in">
+    <div class="container">
+        <div class="mb-5 text-center">
+            <h1 class="section-title mb-2">Checkout</h1>
+            <p class="text-muted">Review your selections and complete your order.</p>
+        </div>
+
+        <div class="row g-5 justify-content-center">
+            <!-- Order Summary -->
+            <div class="col-lg-5">
+                <div class="minimal-card mb-4">
+                    <h4 class="mb-4 font-heading border-bottom pb-3">Order Summary</h4>
+
+                    <div class="mb-4">
+                        {% for item in cart %}
+                        <div class="order-item d-flex justify-content-between align-items-center">
+                            <div class="d-flex gap-3">
+                                {% if item.image %}
+                                <img src="{{ item.image }}" alt="{{ item.name }}"
+                                    style="width: 60px; height: 60px; object-fit: cover;">
+                                {% else %}
+                                <div class="bg-alt d-flex align-items-center justify-content-center border"
+                                    style="width: 60px; height: 60px;">
+                                    <i class="fa-solid fa-utensils text-muted"></i>
+                                </div>
+                                {% endif %}
+                                <div>
+                                    <h6 class="mb-0 fw-bold">{{ item.name }} <span class="ms-1 text-muted fw-normal">x{{ item.qty }}</span></h6>
+                                    {% if item.spice_level %}
+                                    <div class="small text-muted mt-1"><i
+                                            class="fa-solid fa-pepper-hot text-danger me-1"></i>{{ item.spice_level }}
+                                    </div>
+                                    {% endif %}
+                                    {% if item.instructions %}
+                                    <div class="small text-muted fst-italic mt-1">"{{ item.instructions }}"</div>
+                                    {% endif %}
+                                </div>
+                            </div>
+                            <div class="text-end">
+                                <p class="mb-0 fw-medium">₹{% widthratio item.price 1 item.qty %}</p>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
+
+                    <div class="bg-alt p-4">
+                        <div class="d-flex justify-content-between mb-2 text-muted">
+                            <span class="text-uppercase small">Subtotal</span>
+                            <span>₹{{ total|floatformat:2 }}</span>
+                        </div>
+                        <div class="d-flex justify-content-between mb-3 text-muted">
+                            <span class="text-uppercase small">Tax (18% GST)</span>
+                            <span>₹{{ tax|floatformat:2 }}</span>
+                        </div>
+                        <hr>
+                        <div class="d-flex justify-content-between fw-bold fs-5 mt-3">
+                            <span class="text-uppercase font-heading">Total Amount</span>
+                            <span>₹{{ total_with_tax|floatformat:2 }}</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Payment Details -->
+            <div class="col-lg-7">
+                <div class="minimal-card">
+                    <h4 class="mb-4 font-heading border-bottom pb-3">Billing & Payment</h4>
+
+                    <form method="POST" action="{% url 'place_order' %}">
+                        {% csrf_token %}
+
+                        <div class="row g-4 mb-4">
+                            {% if not user.is_authenticated %}
+                            <div class="col-md-6">
+                                <label class="form-label">Full Name</label>
+                                <input type="text" name="customer_name" class="form-control" placeholder="John Doe"
+                                    required>
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label">Phone Number</label>
+                                <input type="tel" name="customer_phone" class="form-control" placeholder="9876543210"
+                                    required>
+                            </div>
+                            {% else %}
+                            <div class="col-12">
+                                <div class="d-flex justify-content-between align-items-center bg-alt p-3 border">
+                                    <div class="d-flex align-items-center gap-3">
+                                        <div class="bg-main border d-flex align-items-center justify-content-center text-main"
+                                            style="width: 45px; height: 45px;">
+                                            <i class="fa-solid fa-user fs-5"></i>
+                                        </div>
+                                        <div>
+                                            <p class="mb-0 fw-bold">{{ user.get_full_name|default:user.username }}</p>
+                                            <small class="text-muted">{{ user.email }}</small>
+                                        </div>
+                                    </div>
+                                    <span
+                                        class="badge border border-success text-success bg-transparent">Verified</span>
+                                </div>
+                            </div>
+                            {% endif %}
+                        </div>
+
+                        <div class="mb-4 border-bottom pb-4">
+                            <label class="form-label">Order Type</label>
+                            <input type="text" class="form-control text-muted"
+                                value="{{ prefs.order_type }} {% if prefs.table_id %}- Table {{ prefs.table_id }}{% endif %}"
+                                readonly style="cursor: not-allowed;">
+                        </div>
+
+                        <div class="mb-5">
+                            <label class="form-label d-block mb-3">Select Payment Method</label>
+
+                            <div class="row g-3">
+                                <div class="col-md-4">
+                                    <div class="payment-option">
+                                        <input type="radio" name="payment_method" id="pay-card" value="Card" checked>
+                                        <label for="pay-card">
+                                            <i class="fa-regular fa-credit-card"></i>
+                                            <span class="fw-medium d-block text-center mt-2">Card</span>
+                                        </label>
+                                    </div>
+                                </div>
+                                <div class="col-md-4">
+                                    <div class="payment-option">
+                                        <input type="radio" name="payment_method" id="pay-upi" value="UPI">
+                                        <label for="pay-upi">
+                                            <i class="fa-solid fa-qrcode"></i>
+                                            <span class="fw-medium d-block text-center mt-2">UPI</span>
+                                        </label>
+                                    </div>
+                                </div>
+                                <div class="col-md-4">
+                                    <div class="payment-option">
+                                        <input type="radio" name="payment_method" id="pay-cash" value="Cash">
+                                        <label for="pay-cash">
+                                            <i class="fa-solid fa-money-bill-wave"></i>
+                                            <span class="fw-medium d-block text-center mt-2">Cash</span>
+                                        </label>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <button type="submit"
+                            class="btn btn-primary w-100 py-3 text-uppercase d-flex justify-content-between align-items-center px-4 rounded-0 letter-spacing-1">
+                            <span>Pay ₹{{ total_with_tax|floatformat:2 }}</span>
+                            <span>Complete Order <i class="fa-solid fa-arrow-right ms-2"></i></span>
+                        </button>
+                    </form>
+
+                    <div class="text-center mt-4 pt-3 border-top">
+                        <a href="{% url 'menu' %}" class="text-muted text-decoration-underline hover-opacity">
+                            Return to Menu
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,267 @@
+{% extends 'base.html' %}
+{% block title %}My Dashboard - SmartDine{% endblock %}
+
+{% block extra_css %}
+<style>
+    .dashboard-wrapper {
+        padding: 4rem 0 8rem;
+        background-color: var(--bg-main);
+    }
+
+    .nav-tabs {
+        border-bottom: 1px solid var(--border-color);
+        margin-bottom: 2rem;
+    }
+
+    .nav-tabs .nav-link {
+        color: var(--text-muted);
+        border: none;
+        border-bottom: 1px solid transparent;
+        font-family: var(--font-main);
+        font-size: 0.9rem;
+        font-weight: 500;
+        padding: 1rem 1.5rem;
+        transition: all 0.2s ease;
+        text-transform: uppercase;
+        letter-spacing: 1px;
+    }
+
+    .nav-tabs .nav-link:hover {
+        color: var(--text-main);
+        border-color: transparent;
+    }
+
+    .nav-tabs .nav-link.active {
+        background: transparent;
+        color: var(--text-main);
+        border-color: transparent;
+        border-bottom: 2px solid var(--text-main);
+    }
+
+    .minimal-card {
+        background: var(--bg-main);
+        border: 1px solid var(--border-color);
+        padding: 2rem;
+        border-radius: 0;
+    }
+
+    .table {
+        color: var(--text-main);
+        margin-bottom: 0;
+    }
+
+    .table> :not(caption)>*>* {
+        background: transparent;
+        border-bottom-color: var(--border-color);
+        padding: 1.25rem 1rem;
+        vertical-align: middle;
+    }
+
+    .table thead th {
+        color: var(--text-muted);
+        font-weight: 600;
+        border-bottom: 1px solid var(--text-main);
+        text-transform: uppercase;
+        font-size: 0.75rem;
+        letter-spacing: 1px;
+    }
+
+    .table-hover>tbody>tr:hover>* {
+        background-color: var(--bg-alt);
+    }
+
+    .status-badge {
+        padding: 0.25em 0.75em;
+        border-radius: 2px;
+        font-size: 0.75rem;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        font-weight: 600;
+        border: 1px solid currentColor;
+        background: transparent;
+    }
+
+    .status-pending {
+        color: var(--warning-color);
+    }
+
+    .status-completed {
+        color: var(--success-color);
+    }
+
+    .status-cancelled {
+        color: var(--danger-color);
+    }
+
+    .status-primary {
+        color: var(--text-main);
+    }
+
+    .empty-state {
+        text-align: center;
+        padding: 4rem 2rem;
+        border: 1px dashed var(--border-color);
+        background: var(--bg-alt);
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="dashboard-wrapper fade-in">
+    <div class="container">
+        <div class="d-flex justify-content-between align-items-center mb-5 border-bottom pb-4">
+            <div>
+                <h1 class="section-title mb-0" style="font-size: 2.25rem;">My Account</h1>
+            </div>
+            <div class="d-none d-md-flex align-items-center gap-3">
+                <div class="text-end">
+                    <p class="mb-0 fw-medium">{{ user.get_full_name|default:user.username }}</p>
+                    <small class="text-muted">{{ user.email }}</small>
+                </div>
+            </div>
+        </div>
+
+        <ul class="nav nav-tabs" id="dashboardTabs" role="tablist">
+            <li class="nav-item" role="presentation">
+                <button class="nav-link active" id="orders-tab" data-bs-toggle="tab" data-bs-target="#orders"
+                    type="button" role="tab">
+                    Orders
+                </button>
+            </li>
+            <li class="nav-item" role="presentation">
+                <button class="nav-link" id="reservations-tab" data-bs-toggle="tab" data-bs-target="#reservations"
+                    type="button" role="tab">
+                    Reservations
+                </button>
+            </li>
+        </ul>
+
+        <div class="tab-content" id="dashboardTabsContent">
+            <!-- Orders Tab -->
+            <div class="tab-pane fade show active" id="orders" role="tabpanel">
+                <div class="minimal-card p-0">
+                    {% if orders %}
+                    <div class="table-responsive">
+                        <table class="table table-hover">
+                            <thead>
+                                <tr>
+                                    <th>Order #</th>
+                                    <th>Date</th>
+                                    <th>Type</th>
+                                    <th>Status</th>
+                                    <th>Total</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for order in orders %}
+                                <tr>
+                                    <td class="fw-medium">#{{ order.id }}</td>
+                                    <td>
+                                        <div>{{ order.created_at|date:"M d, Y" }}</div>
+                                        <small class="text-muted">{{ order.created_at|time:"h:i A" }}</small>
+                                    </td>
+                                    <td class="text-muted">{{ order.order_type }}</td>
+                                    <td>
+                                        <span class="status-badge 
+                                                {% if order.status == 'Pending' %}status-pending
+                                                {% elif order.status == 'Cancelled' %}status-cancelled
+                                                {% elif order.status == 'Completed' or order.status == 'Delivered' %}status-completed
+                                                {% else %}status-primary{% endif %}">
+                                            {{ order.status }}
+                                        </span>
+                                    </td>
+                                    <td class="fw-medium">₹{{ order.total_amount }}</td>
+                                    <td>
+                                        {% if order.status == 'Pending' %}
+                                        <form action="{% url 'cancel_order_customer' order.id %}" method="post"
+                                            class="d-inline" onsubmit="return confirm('Cancel this order?');">
+                                            {% csrf_token %}
+                                            <button type="submit"
+                                                class="btn btn-sm btn-outline-primary rounded-0 px-3">Cancel</button>
+                                        </form>
+                                        {% else %}
+                                        <span class="text-muted small">—</span>
+                                        {% endif %}
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                    {% else %}
+                    <div class="empty-state">
+                        <p class="text-muted mb-4">You haven't placed any orders yet.</p>
+                        <a href="{% url 'menu' %}" class="btn btn-primary rounded-0 px-4">View Menu</a>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+
+            <!-- Reservations Tab -->
+            <div class="tab-pane fade" id="reservations" role="tabpanel">
+                <div class="minimal-card p-0">
+                    {% if reservations %}
+                    <div class="table-responsive">
+                        <table class="table table-hover">
+                            <thead>
+                                <tr>
+                                    <th>Date & Time</th>
+                                    <th>Guests</th>
+                                    <th>Table</th>
+                                    <th>Status</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for res in reservations %}
+                                <tr>
+                                    <td>
+                                        <div class="fw-medium">{{ res.date|date:"M d, Y" }}</div>
+                                        <small class="text-muted">{{ res.time|time:"h:i A" }}</small>
+                                    </td>
+                                    <td class="text-muted">{{ res.guests }}</td>
+                                    <td>
+                                        {% if res.table %}
+                                        <span class="fw-medium">Table {{ res.table.table_number }}</span>
+                                        {% else %}
+                                        <span class="text-muted small">—</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        {% if res.confirmed %}
+                                        <span class="status-badge status-completed">Confirmed</span>
+                                        {% else %}
+                                        <span class="status-badge status-pending">Pending</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        {% if not res.confirmed %}
+                                        <form action="{% url 'cancel_reservation_customer' res.id %}" method="post"
+                                            class="d-inline" onsubmit="return confirm('Cancel this reservation?');">
+                                            {% csrf_token %}
+                                            <button type="submit"
+                                                class="btn btn-sm btn-outline-primary rounded-0 px-3">Cancel</button>
+                                        </form>
+                                        {% else %}
+                                        <span class="text-muted small" title="Call restaurant to modify">Call to
+                                            Modify</span>
+                                        {% endif %}
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                    {% else %}
+                    <div class="empty-state">
+                        <p class="text-muted mb-4">You have no upcoming reservations.</p>
+                        <a href="{% url 'reservations' %}" class="btn btn-primary rounded-0 px-4">Book a Table</a>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

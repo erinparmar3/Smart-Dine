@@ -1,0 +1,105 @@
+{% extends 'base.html' %}
+{% block title %}Login - SmartDine{% endblock %}
+
+{% block extra_css %}
+<style>
+    .auth-wrapper {
+        min-height: calc(100vh - 80px);
+        /* Height minus navbar */
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 4rem 1rem;
+        background-color: var(--bg-alt);
+        /* slightly off white to pop the card */
+    }
+
+    .auth-card {
+        background: var(--bg-main);
+        border: 1px solid var(--border-color);
+        padding: 3.5rem;
+        max-width: 450px;
+        width: 100%;
+        margin: auto;
+    }
+
+    .auth-title {
+        font-family: var(--font-heading);
+        font-size: 2rem;
+        font-weight: 700;
+        color: var(--text-main);
+        margin-bottom: 2rem;
+        text-align: center;
+        letter-spacing: -0.5px;
+    }
+
+    .form-control {
+        border-radius: 0;
+        padding: 0.8rem 1rem;
+    }
+
+    .form-label {
+        font-size: 0.75rem;
+        text-transform: uppercase;
+        letter-spacing: 1px;
+        color: var(--text-muted);
+        font-weight: 600;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="auth-wrapper fade-in">
+    <div class="auth-card">
+        <div class="text-center mb-4">
+            <h1 class="auth-title">Welcome Back</h1>
+        </div>
+
+        <form method="post">
+            {% csrf_token %}
+            {% if form.non_field_errors %}
+            <div class="alert alert-danger rounded-0 border-0 bg-alt d-flex align-items-center p-3 mb-4">
+                <i class="fa-solid fa-circle-exclamation me-2"></i>
+                <div>{{ form.non_field_errors }}</div>
+            </div>
+            {% endif %}
+
+            {% for field in form %}
+            <div class="mb-4">
+                <label for="{{ field.id_for_label }}" class="form-label">{{ field.label }}</label>
+                {{ field }}
+                {% if field.errors %}
+                <div class="text-danger small mt-2">
+                    <i class="fa-solid fa-circle-exclamation me-1"></i>{{ field.errors|striptags }}
+                </div>
+                {% endif %}
+            </div>
+            {% endfor %}
+
+            <button type="submit" class="btn btn-primary w-100 py-3 mt-2 rounded-0">
+                Sign In
+            </button>
+        </form>
+
+        <div class="mt-4 pt-4 border-top text-center">
+            <p class="text-muted mb-0" style="font-size: 0.9rem;">
+                Don't have an account?
+                <a href="{% url 'register' %}" class="fw-medium text-main text-decoration-underline ms-1">Register
+                    here</a>
+            </p>
+        </div>
+    </div>
+</div>
+
+<script>
+    // Add bootstrap form-control classes
+    document.addEventListener("DOMContentLoaded", function () {
+        const inputs = document.querySelectorAll('.auth-card input, .auth-card select');
+        inputs.forEach(input => {
+            if (!input.classList.contains('btn') && input.type !== 'hidden') {
+                input.classList.add('form-control');
+            }
+        });
+    });
+</script>
+{% endblock %}

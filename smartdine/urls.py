@@ -18,6 +18,6 @@ from django.contrib import admin
 from django.urls import path,include #need to write include here 
 
 urlpatterns = [
-    path('admin/', admin.site.urls),
+    path('django-admin/', admin.site.urls),
     path('', include('home.urls')) # THIS whole line run say go to home urls
 ]

@@ -1,136 +1,234 @@
 {% extends 'base.html' %}
+{% load static %}
+{% block title %}SmartDine{% endblock %}
 
-{% block title %}Home{% endblock %}
+{% block extra_css %}
+<style>
+    /* Hero Minimalist */
+    .hero-section {
+        min-height: 80vh;
+        display: flex;
+        align-items: center;
+        position: relative;
+        background-color: var(--bg-main);
+        padding: 4rem 0;
+    }
+
+    .hero-content {
+        max-width: 800px;
+        margin: 0 auto;
+        text-align: center;
+        position: relative;
+        z-index: 2;
+    }
+
+    .hero-title {
+        font-size: clamp(3rem, 6vw, 5rem);
+        line-height: 1.1;
+        margin-bottom: 2rem;
+        color: var(--text-main);
+    }
+
+    .hero-subtitle {
+        font-size: 1.25rem;
+        color: var(--text-muted);
+        margin-bottom: 3rem;
+        max-width: 600px;
+        margin-left: auto;
+        margin-right: auto;
+        font-weight: 300;
+    }
+
+    .hero-buttons .btn {
+        padding: 1rem 2.5rem;
+        font-size: 0.95rem;
+        border-radius: 0;
+    }
+
+    /* Images */
+    .hero-img-wrapper {
+        position: relative;
+        margin-top: 4rem;
+        overflow: hidden;
+    }
+
+    .hero-main-img {
+        width: 100%;
+        height: 600px;
+        object-fit: cover;
+        /* A subtle black and white or high-contrast filter could be cool, but natural is fine */
+    }
+
+    /* Info Strip */
+    .info-strip {
+        background: var(--bg-surface);
+        padding: 4rem 0;
+        border-bottom: 1px solid var(--border-color);
+        text-align: center;
+    }
+
+    .info-item h4 {
+        font-size: 1.5rem;
+        margin-bottom: 1rem;
+    }
+
+    .info-item p {
+        color: var(--text-muted);
+        font-size: 0.95rem;
+        max-width: 300px;
+        margin: 0 auto;
+    }
+
+    /* Featured Section */
+    .featured-section {
+        padding: 8rem 0;
+        background-color: var(--bg-main);
+    }
+
+    .featured-card {
+        border: none;
+        background: transparent;
+        text-align: center;
+    }
+
+    .featured-img-wrapper {
+        width: 100%;
+        height: 400px;
+        overflow: hidden;
+        margin-bottom: 1.5rem;
+    }
+
+    .featured-card img {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+        transition: transform 0.7s ease;
+    }
+
+    .featured-card:hover img {
+        transform: scale(1.05);
+    }
+
+    .featured-card h5 {
+        font-size: 1.25rem;
+        margin-bottom: 0.5rem;
+    }
+
+    .featured-card p {
+        color: var(--text-muted);
+        font-size: 0.9rem;
+    }
+
+    /* Menu specific */
+    .btn-link-custom {
+        color: var(--text-main);
+        text-decoration: underline;
+        text-decoration-color: var(--border-color);
+        text-underline-offset: 4px;
+        font-weight: 500;
+        text-transform: uppercase;
+        letter-spacing: 1px;
+        font-size: 0.85rem;
+        transition: opacity 0.2s;
+        display: inline-block;
+        margin-top: 1rem;
+    }
+
+    .btn-link-custom:hover {
+        opacity: 0.6;
+        color: var(--text-main);
+    }
+</style>
+{% endblock %}
 
 {% block content %}
-<div class="jumbotron bg-light rounded-lg p-5 mb-5">
-    <h1 class="display-4 fw-bold mb-3">Welcome to SmartDine</h1>
-    <p class="lead text-muted mb-4">Experience seamless dining with digital ordering and smart reservations.</p>
-    <hr class="my-4">
-    <p class="mb-4">Smart dining management system for restaurants.</p>
-    <a class="btn btn-primary btn-lg me-2" href="{% url 'menu' %}" role="button">
-        <i class="fas fa-utensils me-2"></i>Order Now
-    </a>
-    <a class="btn btn-outline-primary btn-lg" href="{% url 'reservations' %}" role="button">
-        <i class="fas fa-calendar me-2"></i>Book a Table
-    </a>
-</div>
+<!-- Minimal Hero -->
+<section class="hero-section">
+    <div class="container fade-in">
+        <div class="hero-content">
+            <h1 class="hero-title font-heading">Sourcing local, sustainable, and organic.</h1>
+            <p class="hero-subtitle">We work hard to source premium ingredients and cook everything from scratch with
+                love. Welcome to your new favorite local spot.</p>
 
-<div class="row g-4 mb-5">
-    <div class="col-md-3">
-        <div class="card text-center h-100 border-0">
-            <div class="card-body">
-                <i class="fas fa-box-open fa-3x text-primary mb-3"></i>
-                <h5 class="card-title">Orders</h5>
-                <p class="display-5 fw-bold text-primary">{{ total_orders }}</p>
-                <small class="text-muted">Total orders placed</small>
+            <div class="hero-buttons d-flex justify-content-center gap-3">
+                <a href="{% url 'menu' %}" class="btn btn-primary">Our Menu</a>
+                <a href="{% url 'reservations' %}" class="btn btn-outline-primary">Book a Table</a>
             </div>
         </div>
-    </div>
-    <div class="col-md-3">
-        <div class="card text-center h-100 border-0">
-            <div class="card-body">
-                <i class="fas fa-calendar-check fa-3x text-success mb-3"></i>
-                <h5 class="card-title">Reservations</h5>
-                <p class="display-5 fw-bold text-success">{{ total_reservations }}</p>
-                <small class="text-muted">Total reservations</small>
-            </div>
-        </div>
-    </div>
-    <div class="col-md-3">
-        <div class="card text-center h-100 border-0">
-            <div class="card-body">
-                <i class="fas fa-chair fa-3x text-info mb-3"></i>
-                <h5 class="card-title">Tables</h5>
-                <p class="display-5 fw-bold text-info">{{ available_tables }}</p>
-                <small class="text-muted">Available tables</small>
-            </div>
-        </div>
-    </div>
-    <div class="col-md-3">
-        <div class="card text-center h-100 border-0">
-            <div class="card-body">
-                <i class="fas fa-star fa-3x text-warning mb-3"></i>
-                <h5 class="card-title">Rating</h5>
-                <p class="display-5 fw-bold text-warning">4.8/5</p>
-                <small class="text-muted">Customer satisfaction</small>
-            </div>
-        </div>
-    </div>
-</div>
 
-<section>
-    <h2 class="section-title">How SmartDine Works</h2>
-    <div class="row g-4">
-        <div class="col-md-6">
-            <div class="card h-100">
-                <div class="card-body">
-                    <div class="display-5 text-primary mb-3">01</div>
-                    <h5 class="card-title">Browse Menu</h5>
-                    <p class="card-text">
-                        Explore our delicious menu items with beautiful images and detailed descriptions. 
-                        Filter by category to find exactly what you're looking for.
-                    </p>
-                </div>
-            </div>
+        <div class="hero-img-wrapper slide-up" style="animation-delay: 0.2s;">
+            <!-- Beautiful natural food image -->
+            <img src="https://images.unsplash.com/photo-1498654896293-37aacf113fd9?auto=format&fit=crop&q=80&w=2000"
+                alt="Restaurant Interior/Food" class="hero-main-img">
         </div>
-        <div class="col-md-6">
-            <div class="card h-100">
-                <div class="card-body">
-                    <div class="display-5 text-primary mb-3">02</div>
-                    <h5 class="card-title">Place Order</h5>
-                    <p class="card-text">
-                        Add items to your cart, select your preferred order type (Dine-in, Delivery, or Pickup), 
-                        and proceed to checkout with your preferred payment method.
-                    </p>
-                </div>
+    </div>
+</section>
+
+<!-- Info Strip -->
+<section class="info-strip">
+    <div class="container">
+        <div class="row justify-content-between text-center g-5">
+            <div class="col-md-4 info-item">
+                <h4 class="font-heading">Location</h4>
+                <p>123 Culinary Ave,<br>Food District, City 90210</p>
+                <a href="#" class="btn-link-custom">Get Directions</a>
             </div>
-        </div>
-        <div class="col-md-6">
-            <div class="card h-100">
-                <div class="card-body">
-                    <div class="display-5 text-primary mb-3">03</div>
-                    <h5 class="card-title">Make Reservation</h5>
-                    <p class="card-text">
-                        Book a table in advance for your special occasions. Choose your date, time, and number of guests.
-                        Our system will find the best available table for you.
-                    </p>
-                </div>
+            <div class="col-md-4 info-item">
+                <h4 class="font-heading">Hours</h4>
+                <p>Mon - Thu: 11am - 9pm<br>Fri - Sat: 11am - 10pm<br>Sun: 10am - 8pm</p>
             </div>
-        </div>
-        <div class="col-md-6">
-            <div class="card h-100">
-                <div class="card-body">
-                    <div class="display-5 text-primary mb-3">04</div>
-                    <h5 class="card-title">Track Status</h5>
-                    <p class="card-text">
-                        Monitor your order status from preparation to delivery. Receive real-time updates 
-                        and know exactly when your food will be ready.
-                    </p>
-                </div>
+            <div class="col-md-4 info-item">
+                <h4 class="font-heading">Contact</h4>
+                <p>hello@smartdine.com<br>+1 (234) 567-890</p>
+                <a href="tel:+1234567890" class="btn-link-custom">Call Us</a>
             </div>
         </div>
     </div>
 </section>
 
-<div class="mt-5 p-5 bg-primary text-white rounded-lg">
-    <h2 class="mb-3">Featured Services</h2>
-    <div class="row">
-        <div class="col-md-4 text-center mb-3 mb-md-0">
-            <i class="fas fa-clock fa-2x mb-2"></i>
-            <h5>Fast Service</h5>
-            <p>Orders prepared quickly and efficiently</p>
+<!-- Featured Highlights -->
+<section class="featured-section">
+    <div class="container">
+        <div class="text-center mb-5 pb-3">
+            <h2 class="section-title">A Taste of Our Kitchen</h2>
         </div>
-        <div class="col-md-4 text-center mb-3 mb-md-0">
-            <i class="fas fa-lock fa-2x mb-2"></i>
-            <h5>Secure Payments</h5>
-            <p>All transactions are safe and encrypted</p>
+
+        <div class="row g-5">
+            <div class="col-md-4">
+                <div class="featured-card">
+                    <div class="featured-img-wrapper">
+                        <img src="https://images.unsplash.com/photo-1544025162-d76694265947?auto=format&fit=crop&q=80&w=800"
+                            alt="Ribs">
+                    </div>
+                    <h5 class="font-heading">Signature Ribs</h5>
+                    <p>Slow-cooked to perfection with our house-made organic glaze.</p>
+                </div>
+            </div>
+            <div class="col-md-4">
+                <div class="featured-card" style="margin-top: 2rem;">
+                    <div class="featured-img-wrapper">
+                        <img src="https://images.unsplash.com/photo-1559314809-0d155014e29e?auto=format&fit=crop&q=80&w=800"
+                            alt="Salad">
+                    </div>
+                    <h5 class="font-heading">Market Greens</h5>
+                    <p>Sourced daily from local farmers, dressed lightly with lemon vinaigrette.</p>
+                </div>
+            </div>
+            <div class="col-md-4">
+                <div class="featured-card">
+                    <div class="featured-img-wrapper">
+                        <img src="https://images.unsplash.com/photo-1565299624946-b28f40a0ae38?auto=format&fit=crop&q=80&w=800"
+                            alt="Pasta">
+                    </div>
+                    <h5 class="font-heading">Handmade Pasta</h5>
+                    <p>Fresh pasta made from scratch every morning.</p>
+                </div>
+            </div>
         </div>
-        <div class="col-md-4 text-center">
-            <i class="fas fa-headset fa-2x mb-2"></i>
-            <h5>24/7 Support</h5>
-            <p>Customer support available round the clock</p>
+
+        <div class="text-center mt-5 pt-4">
+            <a href="{% url 'menu' %}" class="btn btn-primary">View Full Menu</a>
         </div>
     </div>
-</div>
+</section>
 {% endblock %}

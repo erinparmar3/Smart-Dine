@@ -1,0 +1,29 @@
+{% extends 'base.html' %}
+
+{% block title %}Menu Item - Admin - SmartDine{% endblock %}
+
+{% block content %}
+<div class="container py-5">
+    <h1 class="section-title mb-4">
+        {% if form.instance.pk %}Edit{% else %}Add{% endif %} Menu Item
+    </h1>
+
+    <form method="post" enctype="multipart/form-data" class="border p-4">
+        {% csrf_token %}
+
+        {{ form.as_p }}
+
+        <h5 class="mt-4 mb-3">Ingredients</h5>
+        {{ formset.management_form }}
+        {% for subform in formset %}
+        <div class="border p-3 mb-3">
+            {{ subform.as_p }}
+        </div>
+        {% endfor %}
+
+        <button type="submit" class="btn btn-primary">Save</button>
+        <a href="{% url 'admin_menu' %}" class="btn btn-outline-secondary ms-2">Cancel</a>
+    </form>
+</div>
+{% endblock %}
+

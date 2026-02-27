@@ -114,3 +114,35 @@ class InventoryUpdateForm(forms.Form):
         ],
         widget=forms.Select(attrs={'class': 'form-select'})
     )
+
+
+class MenuItemForm(forms.ModelForm):
+    """Form for adding/editing menu items"""
+    class Meta:
+        model = MenuItem
+        fields = ['name', 'description', 'price', 'category', 'is_active', 'image']
+        widgets = {
+            'name': forms.TextInput(attrs={'class': 'form-control'}),
+            'description': forms.Textarea(attrs={'class': 'form-control', 'rows': 3}),
+            'price': forms.NumberInput(attrs={'class': 'form-control', 'step': '0.01'}),
+            'category': forms.Select(attrs={'class': 'form-select'}),
+            'is_active': forms.CheckboxInput(attrs={'class': 'form-check-input ms-2'}),
+            'image': forms.FileInput(attrs={'class': 'form-control'}),
+        }
+
+
+# FormSet for managing ingredients for a menu item inline
+from django.forms import inlineformset_factory
+from .models import MenuItemIngredient
+
+MenuItemIngredientFormSet = inlineformset_factory(
+    MenuItem,
+    MenuItemIngredient,
+    fields=['inventory_item', 'quantity_required'],
+    widgets={
+        'inventory_item': forms.Select(attrs={'class': 'form-select'}),
+        'quantity_required': forms.NumberInput(attrs={'class': 'form-control', 'step': '0.01', 'min': '0'}),
+    },
+    extra=1,
+    can_delete=True
+)

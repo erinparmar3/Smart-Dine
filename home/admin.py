@@ -1,11 +1,77 @@
 from django.contrib import admin
 from django.utils.html import format_html
 from django.utils.safestring import mark_safe
+from django import forms
 from .models import (
     MenuItem, Order, OrderItem, Reservation, Table, 
     InventoryItem, MenuItemIngredient, InventoryLog,
-    Recipe, RecipeIngredient
+    Recipe, RecipeIngredient, Category
 )
+
+
+# ============================================================================
+# INVENTORY MANAGEMENT ADMIN
+# ============================================================================
+
+class InventoryItemForm(forms.ModelForm):
+    """Form for editing inventory with change notes"""
+    change_notes = forms.CharField(
+        max_length=500,
+        required=False,
+        widget=forms.Textarea(attrs={
+            'rows': 3,
+            'placeholder': 'Optional: Reason for this change (damaged, delivered, corrected, etc.)'
+        })
+    )
+    
+    class Meta:
+        model = InventoryItem
+        fields = ('name', 'quantity', 'unit', 'reorder_level', 'reorder_quantity', 'price_per_unit')
+    
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        if self.instance.pk:
+            self.fields['name'].widget.attrs['readonly'] = True
+            self.fields['unit'].widget.attrs['readonly'] = True
+    
+    def save(self, commit=True):
+        instance = super().save(commit=False)
+        
+        if self.instance.pk:  # Updating existing
+            old_quantity = self.instance.quantity
+            new_quantity = instance.quantity
+            
+            if old_quantity != new_quantity:
+                quantity_changed = new_quantity - old_quantity
+                change_notes = self.cleaned_data.get('change_notes', '')
+                
+                if commit:
+                    instance.save()
+                    
+                    # Log the change
+                    if quantity_changed > 0:
+                        action = 'Added'
+                    elif quantity_changed < 0:
+                        action = 'Adjusted'
+                    else:
+                        action = 'Adjusted'
+                    
+                    InventoryLog.objects.create(
+                        inventory_item=instance,
+                        action=action,
+                        quantity_changed=quantity_changed,
+                        previous_quantity=old_quantity,
+                        new_quantity=new_quantity,
+                        notes=change_notes or f"Manual adjustment in admin"
+                    )
+            else:
+                if commit:
+                    instance.save()
+        else:  # Creating new
+            if commit:
+                instance.save()
+        
+        return instance
 
 
 # ============================================================================
@@ -14,14 +80,13 @@ from .models import (
 
 @admin.register(InventoryItem)
 class InventoryItemAdmin(admin.ModelAdmin):
+    form = InventoryItemForm
     list_display = ('name', 'quantity', 'unit', 'status_badge', 'reorder_level', 'last_updated')
     list_filter = ('unit', 'last_updated')
     search_fields = ('name',)
     readonly_fields = ('last_updated',)
-    fields = ('name', 'quantity', 'unit', 'reorder_level', 'reorder_quantity', 'price_per_unit', 'last_updated')
+    fields = ('name', 'quantity', 'unit', 'reorder_level', 'reorder_quantity', 'price_per_unit', 'change_notes', 'last_updated')
     actions = ['refill_to_reorder_qty']
-    
-    list_editable = ('quantity',)
     
     def status_badge(self, obj):
         status = obj.get_status()
@@ -40,19 +105,18 @@ class InventoryItemAdmin(admin.ModelAdmin):
     
     @admin.action(description="🔄 Refill to Reorder Quantity")
     def refill_to_reorder_qty(self, request, queryset):
+        """Refill items to their reorder quantity and log the action"""
+        count = 0
         for item in queryset:
-            old_qty = item.quantity
-            item.quantity = item.reorder_quantity
-            item.save()
-            InventoryLog.objects.create(
-                inventory_item=item,
-                action='Added',
-                quantity_changed=item.reorder_quantity - old_qty,
-                previous_quantity=old_qty,
-                new_quantity=item.quantity,
-                notes="Refilled to reorder quantity"
-            )
-        self.message_user(request, f"{queryset.count()} item(s) refilled to reorder quantity.")
+            quantity_needed = item.reorder_quantity - item.quantity
+            if quantity_needed > 0:
+                item.refill_inventory(quantity_needed, notes="Refilled to reorder quantity")
+                count += 1
+        
+        if count > 0:
+            self.message_user(request, f"✅ {count} item(s) refilled. All dependent menu items will be automatically available if ingredients are sufficient.")
+        else:
+            self.message_user(request, "ℹ️  Selected items already at or above reorder quantity.")
 
 
 @admin.register(InventoryLog)
@@ -98,6 +162,11 @@ class InventoryLogAdmin(admin.ModelAdmin):
 # ============================================================================
 # MENU ITEM MANAGEMENT WITH INVENTORY
 # ============================================================================
+
+@admin.register(Category)
+class CategoryAdmin(admin.ModelAdmin):
+    list_display = ('name', 'description')
+    search_fields = ('name',)
 
 class MenuItemIngredientInline(admin.TabularInline):
     model = MenuItemIngredient
@@ -205,15 +274,15 @@ class OrderItemInline(admin.TabularInline):
 @admin.register(Order)
 class OrderAdmin(admin.ModelAdmin):
     inlines = [OrderItemInline]
-    list_display = ('order_id', 'order_type', 'table', 'total', 'status_badge', 'payment_method', 'created_at')
+    list_display = ('id', 'order_type', 'table', 'total_amount', 'status_badge', 'payment_method', 'created_at')
     list_filter = ('status', 'order_type', 'payment_method', 'created_at')
-    search_fields = ('order_id',)
-    readonly_fields = ('order_id', 'created_at', 'total')
+    search_fields = ('id',)
+    readonly_fields = ('id', 'created_at', 'total_amount')
     actions = ['mark_in_kitchen', 'mark_preparing', 'mark_ready', 'mark_delivered', 'mark_completed', 'cancel_order']
     
     fieldsets = (
         ('Order Information', {
-            'fields': ('order_id', 'order_type', 'table', 'total', 'created_at')
+            'fields': ('id', 'order_type', 'table', 'total_amount', 'created_at')
         }),
         ('Status', {
             'fields': ('status', 'completed_at')

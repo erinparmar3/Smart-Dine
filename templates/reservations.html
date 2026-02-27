@@ -1,180 +1,200 @@
 {% extends 'base.html' %}
 
-{% block title %}Reservations{% endblock %}
+{% block title %}Reservations - SmartDine{% endblock %}
+
+{% block extra_css %}
+<style>
+    .reservation-wrapper {
+        padding: 5rem 0 8rem;
+        background-color: var(--bg-main);
+    }
+
+    .booking-card {
+        background: var(--bg-main);
+        border: 1px solid var(--border-color);
+        padding: 3rem;
+        box-shadow: none;
+        /* Minimalist */
+    }
+
+    .form-control,
+    .form-select {
+        background-color: var(--bg-main) !important;
+        border: 1px solid var(--border-color) !important;
+        color: var(--text-main) !important;
+        border-radius: 0;
+        /* Sharp for minimalist editorial feel */
+        padding: 0.8rem 1rem;
+    }
+
+    .form-control:focus,
+    .form-select:focus {
+        border-color: var(--text-main) !important;
+        box-shadow: none !important;
+    }
+
+    .form-label {
+        font-size: 0.75rem;
+        text-transform: uppercase;
+        letter-spacing: 1px;
+        color: var(--text-muted);
+        margin-bottom: 0.5rem;
+        font-weight: 600;
+    }
+
+    /* Minimal Upcoming Card */
+    .upcoming-card {
+        background: transparent;
+        border: 1px solid var(--border-color);
+        padding: 1.5rem;
+        border-radius: 0;
+    }
+
+    .upcoming-card:hover {
+        border-color: var(--text-main);
+    }
+
+    .reservation-img {
+        width: 100%;
+        height: 100%;
+        min-height: 500px;
+        object-fit: cover;
+    }
+</style>
+{% endblock %}
 
 {% block content %}
-<div class="row">
-    <div class="col-lg-6">
-        <div class="card border-0 shadow">
-            <div class="card-header bg-dark text-white">
-                <h5 class="mb-0">
-                    <i class="fas fa-calendar-plus me-2"></i>Make a Reservation
-                </h5>
+<div class="reservation-wrapper">
+    <div class="container fade-in">
+        <div class="row align-items-stretch g-0 border border-1 border-light">
+            <!-- Left Side: Copy & Image -->
+            <div class="col-lg-5 d-none d-lg-block">
+                <img src="https://images.unsplash.com/photo-1514362545857-3bc16c4c7d1b?auto=format&fit=crop&q=80&w=1000"
+                    alt="Restaurant interior" class="reservation-img">
             </div>
-            <div class="card-body">
-                <form method="POST" action="{% url 'make_reservation' %}">
-                    {% csrf_token %}
-                    
-                    {% if form.non_field_errors %}
-                    <div class="alert alert-danger">
-                        {{ form.non_field_errors }}
+
+            <!-- Right Side: Booking Form & Upcoming -->
+            <div class="col-lg-7">
+                <div class="booking-card h-100 d-flex flex-column justify-content-center">
+                    <div class="mb-5">
+                        <h1 class="section-title mb-3" style="font-size: 2.5rem;">Secure Your Table.</h1>
+                        <p class="text-muted" style="font-size: 1.05rem; line-height: 1.6;">
+                            Experience an unforgettable culinary journey. Reserve your spot today to ensure the perfect
+                            evening for you and your guests.
+                        </p>
+                        <p class="text-muted small mt-2">
+                            Prefer to call? <span class="fw-medium text-main">+1 (234) 567-890</span>
+                        </p>
+                    </div>
+
+                    <form method="POST" action="{% url 'make_reservation' %}" class="mb-5">
+                        {% csrf_token %}
+                        {% if form.non_field_errors %}
+                        <div class="alert alert-danger rounded-0 border-0 bg-alt d-flex align-items-center">
+                            <i class="fa-solid fa-circle-exclamation text-danger me-2"></i>
+                            <div>{{ form.non_field_errors }}</div>
+                        </div>
+                        {% endif %}
+
+                        <div class="row g-4 mb-4">
+                            <!-- Name & Phone -->
+                            <div class="col-md-6">
+                                <label class="form-label">Full Name</label>
+                                {{ form.name }}
+                                {% if form.name.errors %}<div class="text-danger small mt-1">{{ form.name.errors }}
+                                </div>{% endif %}
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label">Phone Number</label>
+                                {{ form.phone }}
+                                {% if form.phone.errors %}<div class="text-danger small mt-1">{{ form.phone.errors }}
+                                </div>{% endif %}
+                            </div>
+
+                            <!-- Email & Guests -->
+                            <div class="col-md-8">
+                                <label class="form-label">Email Address</label>
+                                {{ form.email }}
+                                {% if form.email.errors %}<div class="text-danger small mt-1">{{ form.email.errors }}
+                                </div>{% endif %}
+                            </div>
+                            <div class="col-md-4">
+                                <label class="form-label">Guests</label>
+                                {{ form.guests }}
+                                {% if form.guests.errors %}<div class="text-danger small mt-1">{{ form.guests.errors }}
+                                </div>{% endif %}
+                            </div>
+
+                            <!-- Date & Time -->
+                            <div class="col-md-6">
+                                <label class="form-label">Date</label>
+                                {{ form.date }}
+                                {% if form.date.errors %}<div class="text-danger small mt-1">{{ form.date.errors }}
+                                </div>{% endif %}
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label">Time</label>
+                                {{ form.time }}
+                                {% if form.time.errors %}<div class="text-danger small mt-1">{{ form.time.errors }}
+                                </div>{% endif %}
+                            </div>
+
+                            <!-- Special Notes -->
+                            <div class="col-12">
+                                <label class="form-label">Special Requests (Optional)</label>
+                                {{ form.notes }}
+                            </div>
+                        </div>
+
+                        <button type="submit"
+                            class="btn btn-primary w-100 py-3 text-uppercase letter-spacing-1 rounded-0">
+                            Confirm Reservation <i class="fa-solid fa-arrow-right ms-2"></i>
+                        </button>
+                    </form>
+
+                    {% if upcoming_reservations %}
+                    <div class="mt-4 pt-4 border-top">
+                        <h5 class="mb-4 font-heading">Your Upcoming Visits</h5>
+                        <div class="row g-3">
+                            {% for reservation in upcoming_reservations %}
+                            <div class="col-md-6">
+                                <div class="upcoming-card">
+                                    <div class="d-flex justify-content-between align-items-start mb-2">
+                                        <h6 class="mb-0 fw-bold">{{ reservation.name }}</h6>
+                                        {% if reservation.table %}
+                                        <span class="badge bg-alt text-main border border-secondary shadow-none">Table
+                                            {{ reservation.table.table_number }}</span>
+                                        {% else %}
+                                        <span
+                                            class="badge bg-alt text-muted border border-secondary shadow-none">Pending</span>
+                                        {% endif %}
+                                    </div>
+                                    <div class="text-muted small">
+                                        {{ reservation.date|date:"F d, Y" }} at {{ reservation.time|time:"h:i A" }}<br>
+                                        {{ reservation.guests }} Guests
+                                    </div>
+                                </div>
+                            </div>
+                            {% endfor %}
+                        </div>
                     </div>
                     {% endif %}
-
-                    <div class="mb-3">
-                        <label for="{{ form.name.id_for_label }}" class="form-label fw-bold">
-                            <i class="fas fa-user me-2"></i>Name <span class="text-danger">*</span>
-                        </label>
-                        {{ form.name }}
-                        {% if form.name.errors %}
-                        <div class="invalid-feedback" style="display: block;">
-                            {{ form.name.errors.0 }}
-                        </div>
-                        {% endif %}
-                    </div>
-
-                    <div class="mb-3">
-                        <label for="{{ form.phone.id_for_label }}" class="form-label fw-bold">
-                            <i class="fas fa-phone me-2"></i>Phone Number
-                        </label>
-                        {{ form.phone }}
-                        {% if form.phone.errors %}
-                        <div class="invalid-feedback" style="display: block;">
-                            {{ form.phone.errors.0 }}
-                        </div>
-                        {% endif %}
-                    </div>
-
-                    <div class="mb-3">
-                        <label for="{{ form.email.id_for_label }}" class="form-label fw-bold">
-                            <i class="fas fa-envelope me-2"></i>Email Address
-                        </label>
-                        {{ form.email }}
-                        {% if form.email.errors %}
-                        <div class="invalid-feedback" style="display: block;">
-                            {{ form.email.errors.0 }}
-                        </div>
-                        {% endif %}
-                    </div>
-
-                    <div class="row">
-                        <div class="col-md-6 mb-3">
-                            <label for="{{ form.date.id_for_label }}" class="form-label fw-bold">
-                                <i class="fas fa-calendar me-2"></i>Reservation Date <span class="text-danger">*</span>
-                            </label>
-                            {{ form.date }}
-                            {% if form.date.errors %}
-                            <div class="invalid-feedback" style="display: block;">
-                                {{ form.date.errors.0 }}
-                            </div>
-                            {% endif %}
-                        </div>
-                        <div class="col-md-6 mb-3">
-                            <label for="{{ form.time.id_for_label }}" class="form-label fw-bold">
-                                <i class="fas fa-clock me-2"></i>Reservation Time <span class="text-danger">*</span>
-                            </label>
-                            {{ form.time }}
-                            {% if form.time.errors %}
-                            <div class="invalid-feedback" style="display: block;">
-                                {{ form.time.errors.0 }}
-                            </div>
-                            {% endif %}
-                        </div>
-                    </div>
-
-                    <div class="mb-3">
-                        <label for="{{ form.guests.id_for_label }}" class="form-label fw-bold">
-                            <i class="fas fa-users me-2"></i>Number of Guests <span class="text-danger">*</span>
-                        </label>
-                        {{ form.guests }}
-                        {% if form.guests.errors %}
-                        <div class="invalid-feedback" style="display: block;">
-                            {{ form.guests.errors.0 }}
-                        </div>
-                        {% endif %}
-                    </div>
-
-                    <div class="mb-4">
-                        <label for="{{ form.notes.id_for_label }}" class="form-label fw-bold">
-                            <i class="fas fa-sticky-note me-2"></i>Special Requests
-                        </label>
-                        {{ form.notes }}
-                        <small class="form-text text-muted">
-                            Any dietary requirements or special requests (optional)
-                        </small>
-                        {% if form.notes.errors %}
-                        <div class="invalid-feedback" style="display: block;">
-                            {{ form.notes.errors.0 }}
-                        </div>
-                        {% endif %}
-                    </div>
-
-                    <button type="submit" class="btn btn-primary w-100 btn-lg">
-                        <i class="fas fa-hand-paper me-2"></i>Confirm Reservation
-                    </button>
-                </form>
-            </div>
-        </div>
-    </div>
-
-    <div class="col-lg-6">
-        <div class="card border-0 shadow">
-            <div class="card-header bg-dark text-white">
-                <h5 class="mb-0">
-                    <i class="fas fa-calendar-check me-2"></i>Upcoming Reservations
-                </h5>
-            </div>
-            <div class="card-body">
-                {% if upcoming_reservations %}
-                    <div class="list-group list-group-flush">
-                        {% for reservation in upcoming_reservations %}
-                        <div class="list-group-item">
-                            <div class="d-flex justify-content-between align-items-start">
-                                <div class="flex-grow-1">
-                                    <h6 class="mb-1 fw-bold">{{ reservation.name }}</h6>
-                                    <p class="mb-2 small">
-                                        <i class="fas fa-calendar-alt me-2 text-primary"></i>
-                                        {{ reservation.date|date:"M d, Y" }} at {{ reservation.time|time:"H:i A" }}
-                                    </p>
-                                    <p class="mb-0 small">
-                                        <i class="fas fa-users me-2 text-info"></i>
-                                        {{ reservation.guests }} Guest{{ reservation.guests|pluralize }}
-                                    </p>
-                                </div>
-                                <span class="badge bg-success">
-                                    {% if reservation.table %}
-                                        Table {{ reservation.table.table_number }}
-                                    {% else %}
-                                        Pending
-                                    {% endif %}
-                                </span>
-                            </div>
-                        </div>
-                        {% endfor %}
-                    </div>
-                {% else %}
-                    <div class="text-center py-5">
-                        <i class="fas fa-calendar-times fa-3x text-muted mb-3"></i>
-                        <p class="text-muted">No upcoming reservations</p>
-                        <p class="small text-muted">Make a reservation now to secure your table!</p>
-                    </div>
-                {% endif %}
-            </div>
-        </div>
-
-        <div class="card mt-4 border-0 shadow">
-            <div class="card-body">
-                <h6 class="fw-bold mb-3">
-                    <i class="fas fa-lightbulb me-2 text-warning"></i>Reservation Tips
-                </h6>
-                <ul class="small text-muted mb-0">
-                    <li>Reserve at least 1-2 hours in advance for better availability</li>
-                    <li>Mention any dietary restrictions in the special requests</li>
-                    <li>We'll confirm your reservation and notify you via email</li>
-                    <li>Contact us if you need to modify or cancel your reservation</li>
-                </ul>
+                </div>
             </div>
         </div>
     </div>
 </div>
+
+<script>
+    // Add form-control class to all inputs explicitly if not done by Django by default
+    document.addEventListener("DOMContentLoaded", function () {
+        const inputs = document.querySelectorAll('.booking-card input, .booking-card select, .booking-card textarea');
+        inputs.forEach(input => {
+            if (!input.classList.contains('btn') && input.type !== 'hidden') {
+                input.classList.add('form-control');
+                if (input.tagName === 'SELECT') input.classList.add('form-select');
+            }
+        });
+    });
+</script>
 {% endblock %}
