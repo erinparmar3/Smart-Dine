@@ -125,28 +125,18 @@ class MenuItem(models.Model):
         return f"{self.name} - ₹{self.price}"
     
     def is_available(self):
-        """Check if all required ingredients are in stock"""
-        # Prefer the new MenuItemIngredient recipe_items, fallback to legacy Recipe
+        """Check if all required ingredients are in stock (MenuItemIngredient only)"""
         recipe_items = self.recipe_items.all()
         if recipe_items.exists():
             for recipe_item in recipe_items:
                 if recipe_item.inventory_item.quantity < recipe_item.quantity_required:
                     return False
             return True
-
-        # Fallback to legacy Recipe/RecipeIngredient if present
-        if hasattr(self, 'recipe') and self.recipe.ingredients.exists():
-            for ing in self.recipe.ingredients.all():
-                if ing.inventory_item and ing.inventory_item.quantity < ing.quantity:
-                    return False
-            return True
-
         return True
     
     def get_missing_ingredients(self):
-        """Get list of ingredients that are out of stock or insufficient"""
+        """Get list of ingredients that are out of stock or insufficient (MenuItemIngredient only)"""
         missing = []
-        
         recipe_items = self.recipe_items.all()
         if recipe_items.exists():
             for recipe_item in recipe_items:
@@ -161,27 +151,10 @@ class MenuItem(models.Model):
                         'shortage': required - current,
                     })
             return missing
-        
-        # Fallback to legacy recipe
-        if hasattr(self, 'recipe') and self.recipe.ingredients.exists():
-            for ing in self.recipe.ingredients.all():
-                if not ing.inventory_item:
-                    continue
-                required = ing.quantity
-                current = ing.inventory_item.quantity
-                if current < required:
-                    missing.append({
-                        'name': ing.inventory_item.name,
-                        'unit': ing.inventory_item.unit,
-                        'required': required,
-                        'current': current,
-                        'shortage': required - current,
-                    })
-        
         return missing
     
     def can_fulfill_order(self, quantity=1):
-        """Check if we can fulfill order for given quantity"""
+        """Check if we can fulfill order for given quantity (MenuItemIngredient only)"""
         recipe_items = self.recipe_items.all()
         if recipe_items.exists():
             for recipe_item in recipe_items:
@@ -189,35 +162,22 @@ class MenuItem(models.Model):
                 if recipe_item.inventory_item.quantity < required:
                     return False, f"Insufficient {recipe_item.inventory_item.name}"
             return True, "Available"
-
-        # Fallback to legacy recipe
-        if hasattr(self, 'recipe') and self.recipe.ingredients.exists():
-            for ing in self.recipe.ingredients.all():
-                if not ing.inventory_item:
-                    continue
-                required = ing.quantity * quantity
-                if ing.inventory_item.quantity < required:
-                    return False, f"Insufficient {ing.inventory_item.name}"
-            return True, "Available"
-
         return True, "Available"
     
     def deduct_inventory(self, quantity=1):
-        """Deduct required ingredients from inventory after order
-        
-        ATOMIC OPERATION: Either ALL ingredients are deducted or NONE are.
-        Ensures inventory never goes negative.
+        """Deduct required ingredients from inventory after order.
+
+        Uses MenuItemIngredient only. ATOMIC: either all ingredients are
+        deducted or none, and inventory never goes negative.
         Raises ValueError if any ingredient is insufficient.
         """
         from django.db import transaction
         
         try:
             with transaction.atomic():
-                # Lock the recipe items to prevent concurrent modifications
                 recipe_items = list(self.recipe_items.select_related('inventory_item').all())
                 
                 if recipe_items:
-                    # Lock inventory items first strictly before doing anything
                     inventory_ids = [item.inventory_item_id for item in recipe_items]
                     locked_inventories = {
                         inv.id: inv 
@@ -256,51 +216,6 @@ class MenuItem(models.Model):
                             notes=f"Used for {self.name} ({quantity}x order)"
                         )
                     return True
-
-                # Fallback to legacy Recipe/RecipeIngredient
-                if hasattr(self, 'recipe') and self.recipe.ingredients.exists():
-                    legacy_items = list(self.recipe.ingredients.select_related('inventory_item').all())
-                    inventory_ids = [ing.inventory_item_id for ing in legacy_items if ing.inventory_item_id]
-                    
-                    locked_inventories = {
-                        inv.id: inv 
-                        for inv in InventoryItem.objects.select_for_update().filter(id__in=inventory_ids)
-                    }
-                    
-                    # Validate first
-                    for ing in legacy_items:
-                        if not ing.inventory_item_id:
-                            continue
-                        inventory = locked_inventories.get(ing.inventory_item_id)
-                        required = ing.quantity * quantity
-                        if inventory.quantity < required:
-                            raise ValueError(
-                                f"Insufficient {inventory.name}: "
-                                f"Need {required}, Have {inventory.quantity}"
-                            )
-                    
-                    # All valid, now deduct
-                    for ing in legacy_items:
-                        if not ing.inventory_item_id:
-                            continue
-                            
-                        inventory = locked_inventories.get(ing.inventory_item_id)
-                        required = ing.quantity * quantity
-                        
-                        old_qty = inventory.quantity
-                        inventory.quantity -= required
-                        inventory.save()
-                        
-                        InventoryLog.objects.create(
-                            inventory_item=inventory,
-                            action='Used',
-                            quantity_changed=-required,
-                            previous_quantity=old_qty,
-                            new_quantity=inventory.quantity,
-                            notes=f"Used for {self.name} ({quantity}x order)"
-                        )
-                    return True
-
                 return True
         except Exception as e:
             # Re-raise so order transaction can be rolled back
@@ -365,32 +280,6 @@ class InventoryLog(models.Model):
         ordering = ['-created_at']
         verbose_name_plural = "Inventory Logs"
 
-
-class Recipe(models.Model):
-    """Recipe ingredients for each menu item - KEPT FOR BACKWARDS COMPATIBILITY"""
-    menu_item = models.OneToOneField(MenuItem, on_delete=models.CASCADE, related_name='recipe')
-    
-    def __str__(self):
-        return f"Recipe for {self.menu_item.name}"
-
-
-class RecipeIngredient(models.Model):
-    """Individual ingredients in a recipe - KEPT FOR BACKWARDS COMPATIBILITY"""
-    recipe = models.ForeignKey(Recipe, on_delete=models.CASCADE, related_name='ingredients')
-    inventory_item = models.ForeignKey(InventoryItem, on_delete=models.CASCADE, null=True, blank=True, related_name='old_recipe_uses')
-    ingredient = models.CharField(max_length=100, null=True, blank=True)  # e.g., 'flour', 'cheese'
-    quantity = models.FloatField(validators=[MinValueValidator(0.0)])  # in grams/units
-    
-    def __str__(self):
-        if self.inventory_item:
-            return f"{self.inventory_item.name} - {self.quantity}"
-        return f"{self.quantity}g of {self.ingredient}"
-    
-    def has_sufficient_stock(self):
-        """Check if inventory has enough of this ingredient"""
-        if not self.inventory_item:
-            return True
-        return self.inventory_item.quantity >= self.quantity
 
 
 class Table(models.Model):

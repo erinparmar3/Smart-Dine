@@ -12,8 +12,8 @@ from decimal import Decimal
 import json
 
 from .models import (
-    MenuItem, Order, OrderItem, Reservation, Table, 
-    InventoryItem, Recipe, RecipeIngredient
+    MenuItem, Order, OrderItem, Reservation, Table,
+    InventoryItem,
 )
 from .forms import (
     PlaceOrderForm, ReservationForm, InventoryUpdateForm, 
@@ -90,7 +90,7 @@ def cancel_order_customer(request, order_id):
             order.status = 'Cancelled'
             order.save()
             
-            # Restore inventory
+            # Restore inventory (MenuItemIngredient only)
             for item in order.items.all():
                 recipe_items = item.menu_item.recipe_items.all()
                 if recipe_items.exists():
@@ -98,12 +98,6 @@ def cancel_order_customer(request, order_id):
                         inv = recipe_item.inventory_item
                         restored_qty = recipe_item.quantity_required * item.quantity
                         inv.refill_inventory(restored_qty, notes=f"Restored from cancelled order #{order.id}")
-                elif hasattr(item.menu_item, 'recipe') and item.menu_item.recipe.ingredients.exists():
-                    for ing in item.menu_item.recipe.ingredients.all():
-                        if ing.inventory_item:
-                            inv = ing.inventory_item
-                            restored_qty = ing.quantity * item.quantity
-                            inv.refill_inventory(restored_qty, notes=f"Restored from cancelled order #{order.id}")
 
         messages.success(request, f'Order #{order.id} has been cancelled.')
     else:
@@ -147,17 +141,37 @@ def menu(request):
     from .models import Category
     categories = Category.objects.all()
     
-    # Get menu items, optionally filtered by category
+    # Base queryset: only active items
+    base_qs = MenuItem.objects.filter(is_active=True).order_by('id')
+
+    # Get menu items, optionally filtered by category, limited to 25
     if selected_category:
         try:
             category_id = int(selected_category)
-            menu_items = MenuItem.objects.filter(category_id=category_id)
+            menu_items = base_qs.filter(category_id=category_id)[:25]
         except ValueError:
-            menu_items = MenuItem.objects.all()
+            menu_items = base_qs[:25]
     else:
-        menu_items = MenuItem.objects.all()
+        menu_items = base_qs[:25]
     
-    tables = Table.objects.filter(status='Available')
+    available_tables = Table.objects.filter(status='Available')
+    reserved_table_ids = []
+
+    if request.user.is_authenticated:
+        reserved_table_ids = list(
+            Reservation.objects.filter(
+                user=request.user,
+                status='Approved',
+                date__gte=timezone.now().date(),
+                table__isnull=False
+            )
+            .values_list('table_id', flat=True)
+            .distinct()
+        )
+
+    tables = Table.objects.filter(
+        Q(id__in=reserved_table_ids) | Q(id__in=available_tables.values('id'))
+    ).distinct().order_by('table_number')
     
     # Get cart from session
     cart = request.session.get('cart', [])
@@ -176,6 +190,7 @@ def menu(request):
         'categories': categories,
         'selected_category': selected_category,
         'tables': tables,
+        'reserved_table_ids': reserved_table_ids,
         'cart': cart,
         'total': float(round(total, 2)),
         'tax': float(round(tax, 2)),
@@ -357,6 +372,11 @@ def place_order(request):
         
         order_type = prefs.get('order_type', 'Dine-in')
         table_id = prefs.get('table_id', '')
+
+        # For dine-in orders, a table number is required
+        if order_type == 'Dine-in' and not table_id:
+            messages.error(request, 'Please select a table number for dine-in orders.')
+            return redirect('checkout')
         
         # Calculate final amounts
         total = Decimal(str(sum(item['price'] * item['qty'] for item in cart)))
@@ -392,6 +412,23 @@ def place_order(request):
         table = None
         if order_type == 'Dine-in' and table_id:
             table = get_object_or_404(Table, id=table_id)
+            if table.status != 'Available':
+                has_valid_reservation = False
+                if request.user.is_authenticated:
+                    has_valid_reservation = Reservation.objects.filter(
+                        user=request.user,
+                        table=table,
+                        status='Approved',
+                        date=timezone.now().date()
+                    ).exists()
+
+                if not has_valid_reservation:
+                    messages.error(
+                        request,
+                        'Selected table is not currently available for dine-in ordering.'
+                    )
+                    return redirect('menu')
+
             table.status = 'Occupied'
             table.save()
         
@@ -512,7 +549,10 @@ def is_table_available(date, time, guests, exclude_reservation_id=None):
     
     # strictly lock tables that we are checking to avoid race condition where two requests
     # find the same table available simultaneously
-    eligible_tables = Table.objects.select_for_update().filter(capacity__gte=guests)
+    eligible_tables = Table.objects.select_for_update().filter(
+        capacity__gte=guests,
+        status='Available'
+    )
     
     for table in eligible_tables:
         # Check overlapping approved reservations for this specific table
@@ -530,6 +570,7 @@ def is_table_available(date, time, guests, exclude_reservation_id=None):
             
     return None
 
+@login_required(login_url='login')
 def reservations(request):
     """Reservations page"""
     form = ReservationForm()
@@ -549,6 +590,7 @@ def reservations(request):
     return render(request, 'reservations.html', context)
 
 
+@login_required(login_url='login')
 @require_http_methods(["POST"])
 def make_reservation(request):
     """Process reservation"""
@@ -575,13 +617,18 @@ def make_reservation(request):
                     return redirect('reservations')
                     
                 reservation = form.save(commit=False)
-                reservation.status = 'Pending'  # Must be approved by admin
+                reservation.table = table
+                reservation.status = 'Approved'
+                reservation.confirmed = True
                 
                 if request.user.is_authenticated:
                     reservation.user = request.user
                     
                 reservation.save()
-                messages.success(request, '✅ Reservation request submitted! It is currently Pending and will appear in your dashboard.')
+                messages.success(
+                    request,
+                    f'Reservation confirmed. Table {table.table_number} has been allotted for your slot.'
+                )
                 return redirect('reservations')
         except Exception as e:
             messages.error(request, f'An error occurred: {str(e)}')
@@ -589,375 +636,5 @@ def make_reservation(request):
     
     messages.error(request, 'Failed to make reservation. Please check your inputs.')
     return redirect('reservations')
-
-
-# ==================== ADMIN VIEWS ====================
-
-def admin_dashboard(request):
-    """Admin dashboard"""
-    # Get recent orders
-    recent_orders = Order.objects.all().order_by('-created_at')[:10]
-    pending_orders = Order.objects.filter(status='Pending').count()
-    
-    # Get inventory
-    low_stock_items = InventoryItem.objects.filter(
-        quantity__lt=F('reorder_level')
-    )
-    
-    # Get tables
-    tables = Table.objects.all()
-    occupied_tables = tables.filter(status='Occupied').count()
-    
-    # Get reservations
-    upcoming_reservations = Reservation.objects.filter(
-        date__gte=timezone.now().date()
-    ).exclude(status__in=['Pending', 'Cancelled', 'Rejected']).order_by('date', 'time')[:5]
-    
-    pending_reservations = Reservation.objects.filter(status='Pending').order_by('date', 'time')
-    
-    # Calculate stats
-    today_orders = Order.objects.filter(
-        created_at__date=timezone.now().date()
-    ).count()
-    
-    today_revenue = Order.objects.filter(
-        created_at__date=timezone.now().date(),
-        status__in=['Completed', 'Ready']
-    ).aggregate(total=Sum('final_amount'))['total'] or 0
-    
-    context = {
-        'recent_orders': recent_orders,
-        'pending_orders': pending_orders,
-        'low_stock_items': low_stock_items,
-        'tables': tables,
-        'occupied_tables': occupied_tables,
-        'upcoming_reservations': upcoming_reservations,
-        'pending_reservations': pending_reservations,
-        'today_orders': today_orders,
-        'today_revenue': today_revenue,
-    }
-    return render(request, 'admin/dashboard.html', context)
-
-
-def admin_orders(request):
-    """Admin orders management"""
-    orders = Order.objects.all().order_by('-created_at')
-    filter_form = OrderFilterForm(request.GET)
-    
-    if filter_form.is_valid():
-        status = filter_form.cleaned_data.get('status')
-        order_type = filter_form.cleaned_data.get('order_type')
-        
-        if status:
-            orders = orders.filter(status=status)
-        if order_type:
-            orders = orders.filter(order_type=order_type)
-    
-    context = {
-        'orders': orders,
-        'filter_form': filter_form,
-    }
-    return render(request, 'admin/orders.html', context)
-
-
-@require_http_methods(["POST"])
-def update_order_status(request, order_id):
-    """Update order status"""
-    order = get_object_or_404(Order, id=order_id)
-    status = request.POST.get('status', 'Pending')
-    
-    if status in dict(Order.STATUS_CHOICES):
-        old_status = order.status
-        order.status = status
-        if status == 'Completed':
-            order.completed_at = timezone.now()
-        
-        with transaction.atomic():
-            order.save()
-            
-            # If changing to Cancelled from a non-cancelled state, restore inventory
-            if status == 'Cancelled' and old_status != 'Cancelled':
-                for item in order.items.all():
-                    recipe_items = item.menu_item.recipe_items.all()
-                    if recipe_items.exists():
-                        for recipe_item in recipe_items:
-                            inv = recipe_item.inventory_item
-                            restored_qty = recipe_item.quantity_required * item.quantity
-                            inv.refill_inventory(restored_qty, notes=f"Restored from cancelled order #{order.id} by admin")
-                    elif hasattr(item.menu_item, 'recipe') and item.menu_item.recipe.ingredients.exists():
-                        for ing in item.menu_item.recipe.ingredients.all():
-                            if ing.inventory_item:
-                                inv = ing.inventory_item
-                                restored_qty = ing.quantity * item.quantity
-                                inv.refill_inventory(restored_qty, notes=f"Restored from cancelled order #{order.id} by admin")
-
-        messages.success(request, f'Order #{order_id} status updated to {status}')
-    
-    return redirect('admin_orders')
-
-
-def admin_inventory(request):
-    """Admin inventory management"""
-    inventory_items = InventoryItem.objects.all().order_by('name')
-    low_stock = inventory_items.filter(quantity__lt=F('reorder_level'))
-    
-    if request.method == 'POST':
-        form = InventoryUpdateForm(request.POST)
-        if form.is_valid():
-            ingredient = form.cleaned_data['ingredient']
-            quantity = form.cleaned_data['quantity']
-            action = form.cleaned_data['action']
-            
-            inv_item, created = InventoryItem.objects.get_or_create(
-                name__iexact=ingredient,
-                defaults={'name': ingredient}
-            )
-            
-            if action == 'add':
-                inv_item.quantity += quantity
-            else:  # action == 'set'
-                inv_item.quantity = quantity
-            
-            inv_item.save()
-            messages.success(request, f'Inventory updated: {ingredient}')
-            return redirect('admin_inventory')
-    else:
-        form = InventoryUpdateForm()
-    
-    context = {
-        'inventory_items': inventory_items,
-        'low_stock': low_stock,
-        'form': form,
-    }
-    return render(request, 'admin/inventory.html', context)
-
-
-def admin_tables(request):
-    """Admin table management"""
-    tables = Table.objects.all().order_by('table_number')
-    reservations = Reservation.objects.filter(
-        confirmed=True,
-        date__gte=timezone.now().date()
-    ).order_by('date', 'time')
-    
-    context = {
-        'tables': tables,
-        'reservations': reservations,
-    }
-    return render(request, 'admin/tables.html', context)
-
-
-@require_http_methods(["POST"])
-def update_table_status(request, table_id):
-    """Update table status"""
-    table = get_object_or_404(Table, id=table_id)
-    status = request.POST.get('status', 'Available')
-    
-    if status in dict(Table._meta.get_field('status').choices):
-        table.status = status
-        table.save()
-        messages.success(request, f'Table {table.table_number} status updated')
-    
-    return redirect('admin_tables')
-
-
-def admin_reservations(request):
-    """Admin reservations management"""
-    # Exclude historical/cancelled to focus on active management
-    reservations = Reservation.objects.exclude(status='Cancelled').order_by('-date', '-time')
-    
-    context = {
-        'reservations': reservations,
-    }
-    return render(request, 'admin/reservations.html', context)
-
-
-@require_http_methods(["POST"])
-def confirm_reservation(request, reservation_id):
-    """Update reservation status via Admin panel"""
-    reservation = get_object_or_404(Reservation, id=reservation_id)
-    new_status = request.POST.get('status')
-    
-    if new_status not in dict(Reservation.STATUS_CHOICES):
-        messages.error(request, 'Invalid status.')
-        return redirect('admin_reservations')
-        
-    if new_status == 'Approved':
-        # Re-verify availability
-        table = is_table_available(reservation.date, reservation.time, reservation.guests, exclude_reservation_id=reservation.id)
-        if not table:
-            messages.error(request, 'Cannot approve: No tables available for this time/capacity.')
-            return redirect('admin_reservations')
-        reservation.table = table
-        reservation.confirmed = True
-    elif new_status in ['Rejected', 'Cancelled', 'Completed']:
-        # Free up the assigned table slots by just unlinking or keeping track
-        # Since logic filters by 'Approved', merely changing status is enough
-        pass
-
-    reservation.status = new_status
-    reservation.save()
-    messages.success(request, f'Reservation form {reservation.name} marked as {new_status}.')
-    return redirect('admin_reservations')
-
-
-@require_http_methods(["POST"])
-def cancel_reservation_admin(request, reservation_id):
-    """Admin cancel/delete reservation"""
-    if not request.user.is_staff:
-        return redirect('home')
-        
-    reservation = get_object_or_404(Reservation, id=reservation_id)
-    name = reservation.name
-    reservation.delete()
-    messages.success(request, f'Reservation for "{name}" has been deleted.')
-    return redirect('admin_reservations')
-
-
-from django.db.models import Count
-
-def admin_reports(request):
-    """Admin reports for sales, revenue, and top items"""
-    # Date filters
-    start_date_str = request.GET.get('start_date')
-    end_date_str = request.GET.get('end_date')
-    
-    orders = Order.objects.filter(status__in=['Completed', 'Delivered'])
-    
-    if start_date_str:
-        try:
-            start_date = datetime.strptime(start_date_str, '%Y-%m-%d').date()
-            orders = orders.filter(created_at__date__gte=start_date)
-        except ValueError:
-            pass
-            
-    if end_date_str:
-        try:
-            end_date = datetime.strptime(end_date_str, '%Y-%m-%d').date()
-            orders = orders.filter(created_at__date__lte=end_date)
-        except ValueError:
-            pass
-            
-    # Key Metrics
-    total_sales = orders.count()
-    total_revenue = orders.aggregate(total=Sum('final_amount'))['total'] or 0
-    total_tax = orders.aggregate(tax=Sum('tax_amount'))['tax'] or 0
-    
-    # Top Selling Items
-    top_items = OrderItem.objects.filter(order__in=orders) \
-        .values('menu_item__name') \
-        .annotate(total_quantity=Sum('quantity'), total_revenue=Sum(F('quantity') * F('price'))) \
-        .order_by('-total_quantity')[:10]
-        
-    # Orders by Day
-    sales_by_date = orders.values('created_at__date') \
-        .annotate(daily_revenue=Sum('final_amount'), daily_orders=Count('id')) \
-        .order_by('-created_at__date')[:30]
-        
-    context = {
-        'total_sales': total_sales,
-        'total_revenue': total_revenue,
-        'total_tax': total_tax,
-        'top_items': top_items,
-        'sales_by_date': sales_by_date,
-        'start_date': start_date_str,
-        'end_date': end_date_str,
-    }
-    return render(request, 'admin/reports.html', context)
-
-
-# ==================== MENU ADMIN VIEWS ====================
-
-def admin_menu(request):
-    """Admin menu management list view"""
-    if not request.user.is_staff:
-        return redirect('home')
-        
-    menu_items = MenuItem.objects.all().order_by('category__name', 'name')
-    context = {'menu_items': menu_items}
-    return render(request, 'admin/menu.html', context)
-
-
-def admin_menu_add(request):
-    """Admin menu item creation"""
-    if not request.user.is_staff:
-        return redirect('home')
-        
-    if request.method == 'POST':
-        form = MenuItemForm(request.POST, request.FILES)
-        if form.is_valid():
-            with transaction.atomic():
-                menu_item = form.save()
-                
-                # Make sure a Recipe exists too
-                Recipe.objects.get_or_create(menu_item=menu_item)
-                
-                formset = MenuItemIngredientFormSet(request.POST, instance=menu_item)
-                if formset.is_valid():
-                    formset.save()
-                    messages.success(request, f'Menu item "{menu_item.name}" created successfully!')
-                    return redirect('admin_menu')
-        else:
-            formset = MenuItemIngredientFormSet(request.POST)
-    else:
-        form = MenuItemForm()
-        formset = MenuItemIngredientFormSet()
-        
-    context = {
-        'title': 'Add Menu Item',
-        'form': form,
-        'formset': formset,
-    }
-    return render(request, 'admin/menu_form.html', context)
-
-
-def admin_menu_edit(request, item_id):
-    """Admin menu item editing"""
-    if not request.user.is_staff:
-        return redirect('home')
-        
-    menu_item = get_object_or_404(MenuItem, id=item_id)
-    
-    if request.method == 'POST':
-        form = MenuItemForm(request.POST, request.FILES, instance=menu_item)
-        if form.is_valid():
-            with transaction.atomic():
-                menu_item = form.save()
-                
-                # Make sure a Recipe exists too
-                Recipe.objects.get_or_create(menu_item=menu_item)
-                
-                formset = MenuItemIngredientFormSet(request.POST, instance=menu_item)
-                if formset.is_valid():
-                    formset.save()
-                    messages.success(request, f'Menu item "{menu_item.name}" updated successfully!')
-                    return redirect('admin_menu')
-        else:
-            formset = MenuItemIngredientFormSet(request.POST, instance=menu_item)
-    else:
-        form = MenuItemForm(instance=menu_item)
-        formset = MenuItemIngredientFormSet(instance=menu_item)
-        
-    context = {
-        'title': f'Edit {menu_item.name}',
-        'form': form,
-        'formset': formset,
-        'item': menu_item
-    }
-    return render(request, 'admin/menu_form.html', context)
-
-
-@require_http_methods(["POST"])
-def admin_menu_delete(request, item_id):
-    """Admin menu item deletion"""
-    if not request.user.is_staff:
-        return redirect('home')
-        
-    menu_item = get_object_or_404(MenuItem, id=item_id)
-    name = menu_item.name
-    menu_item.delete()
-    messages.success(request, f'Menu item "{name}" deleted successfully.')
-    return redirect('admin_menu')
-
 
 

@@ -31,19 +31,4 @@ urlpatterns = [
     path('reservations/', views.reservations, name='reservations'),
     path('make-reservation/', views.make_reservation, name='make_reservation'),
     
-    # Admin routes
-    path('admin/', views.admin_dashboard, name='admin_dashboard'),
-    path('admin/orders/', views.admin_orders, name='admin_orders'),
-    path('admin/update-order-status/<int:order_id>/', views.update_order_status, name='update_order_status'),
-    path('admin/inventory/', views.admin_inventory, name='admin_inventory'),
-    path('admin/tables/', views.admin_tables, name='admin_tables'),
-    path('admin/tables/<int:table_id>/status/', views.update_table_status, name='update_table_status'),
-    path('admin/reservations/', views.admin_reservations, name='admin_reservations'),
-    path('admin/reservations/<int:reservation_id>/confirm/', views.confirm_reservation, name='confirm_reservation'),
-    path('admin/reservations/<int:reservation_id>/cancel/', views.cancel_reservation_admin, name='cancel_reservation_admin'),
-    path('admin/reports/', views.admin_reports, name='admin_reports'),
-    path('admin/menu/', views.admin_menu, name='admin_menu'),
-    path('admin/menu/add/', views.admin_menu_add, name='admin_menu_add'),
-    path('admin/menu/<int:item_id>/edit/', views.admin_menu_edit, name='admin_menu_edit'),
-    path('admin/menu/<int:item_id>/delete/', views.admin_menu_delete, name='admin_menu_delete'),
 ]

@@ -3,15 +3,13 @@ from django.utils.html import format_html
 from django.utils.safestring import mark_safe
 from django import forms
 from .models import (
-    MenuItem, Order, OrderItem, Reservation, Table, 
+    MenuItem, Order, OrderItem, Reservation, Table,
     InventoryItem, MenuItemIngredient, InventoryLog,
-    Recipe, RecipeIngredient, Category
+    Category
 )
 
 
-# ============================================================================
 # INVENTORY MANAGEMENT ADMIN
-# ============================================================================
 
 class InventoryItemForm(forms.ModelForm):
     """Form for editing inventory with change notes"""
@@ -159,9 +157,7 @@ class InventoryLogAdmin(admin.ModelAdmin):
         return False
 
 
-# ============================================================================
 # MENU ITEM MANAGEMENT WITH INVENTORY
-# ============================================================================
 
 @admin.register(Category)
 class CategoryAdmin(admin.ModelAdmin):
@@ -388,9 +384,6 @@ class ReservationAdmin(admin.ModelAdmin):
         ('Status', {
             'fields': ('confirmed',)
         }),
-        ('Additional Notes', {
-            'fields': ('notes',)
-        }),
         ('Metadata', {
             'fields': ('created_at',),
             'classes': ('collapse',)
@@ -420,7 +413,4 @@ class ReservationAdmin(admin.ModelAdmin):
         self.message_user(request, f'{updated} reservation(s) cancelled.')
 
 
-# Keep old models registered for backwards compatibility
-admin.site.register(Recipe)
-admin.site.register(RecipeIngredient)
 

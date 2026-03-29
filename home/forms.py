@@ -56,7 +56,7 @@ class ReservationForm(forms.ModelForm):
     
     class Meta:
         model = Reservation
-        fields = ['name', 'phone', 'email', 'date', 'time', 'guests', 'notes']
+        fields = ['name', 'phone', 'email', 'date', 'time', 'guests']
         widgets = {
             'name': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Full Name'}),
             'phone': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Phone Number'}),
@@ -66,11 +66,6 @@ class ReservationForm(forms.ModelForm):
                 'min': '1',
                 'max': '20'
             }),
-            'notes': forms.Textarea(attrs={
-                'class': 'form-control',
-                'rows': 3,
-                'placeholder': 'Special requests or dietary needs'
-            }),
         }
         labels = {
             'name': 'Name',
@@ -79,7 +74,6 @@ class ReservationForm(forms.ModelForm):
             'date': 'Reservation Date',
             'time': 'Reservation Time',
             'guests': 'Number of Guests',
-            'notes': 'Special Notes',
         }
 
 

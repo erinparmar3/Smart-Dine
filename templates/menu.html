@@ -260,7 +260,7 @@
 
                                     {% if item.is_available %}
                                     <button class="btn btn-outline-primary btn-sm px-4 rounded-0"
-                                        onclick="openOrderModal('{{ item.id }}', '{{ item.name }}', {{ item.price }})">
+                                        onclick="openOrderModal('{{ item.id }}', '{{ item.name|escapejs }}', '{{ item.price }}')">
                                         Add
                                     </button>
                                     {% else %}
@@ -291,11 +291,12 @@
                         {% for item in cart %}
                         <div class="cart-item">
                             <div class="d-flex justify-content-between align-items-start mb-1">
-                                <h6 class="fw-bold mb-0">{{ item.name }} <span class="ms-1 text-muted fw-normal">x{{
-                                        item.qty }}</span></h6>
+                                <h6 class="fw-bold mb-0">
+                                    {{ item.name }}
+                                    <span class="ms-1 text-muted fw-normal">x{{ item.qty }}</span>
+                                </h6>
                                 <span class="fw-medium">₹{% widthratio item.price 1 item.qty %}</span>
                             </div>
-
 
                             {% if item.instructions %}
                             <div class="small text-muted fst-italic mb-2">"{{ item.instructions }}"</div>
@@ -320,9 +321,37 @@
                         </div>
                     </div>
 
-                    <a href="{% url 'checkout' %}" class="btn btn-primary w-100 py-3 rounded-0 letter-spacing-1">
-                        Go to Checkout <i class="fa-solid fa-arrow-right ms-2"></i>
-                    </a>
+                    <!-- Order preferences before checkout -->
+                    <form method="post" action="{% url 'checkout' %}" class="mb-3">
+                        {% csrf_token %}
+                        <div class="mb-3">
+                            <label class="form-label text-uppercase small text-muted">Order Type</label>
+                            <select name="order_type" id="order-type-select"
+                                class="form-select form-select-sm rounded-0">
+                                <option value="Dine-in">Dine-in</option>
+                                <option value="Delivery">Delivery</option>
+                                <option value="Pickup">Pickup</option>
+                            </select>
+                        </div>
+
+                        <div class="mb-3" id="table-select-group" style="display: none;">
+                            <label class="form-label text-uppercase small text-muted">Table Number</label>
+                            <select name="table" class="form-select form-select-sm rounded-0">
+                                <option value="">Select a table</option>
+                                {% for table in tables %}
+                                <option value="{{ table.id }}">
+                                    Table {{ table.table_number }} ({{ table.capacity }} seats)
+                                    {% if table.id in reserved_table_ids %}- Reserved for you{% endif %}
+                                </option>
+                                {% endfor %}
+                            </select>
+                        </div>
+
+                        <button type="submit"
+                            class="btn btn-primary w-100 py-3 rounded-0 letter-spacing-1">
+                            Go to Checkout <i class="fa-solid fa-arrow-right ms-2"></i>
+                        </button>
+                    </form>
                     {% else %}
                     <div class="text-center py-5">
                         <i class="fa-solid fa-bag-shopping fs-1 text-muted opacity-25 mb-3"></i>
@@ -441,6 +470,17 @@
 
     // Category smooth scroll and active state
     document.addEventListener("DOMContentLoaded", function () {
+        // Toggle table selection based on order type
+        const orderTypeSelect = document.getElementById('order-type-select');
+        const tableGroup = document.getElementById('table-select-group');
+        if (orderTypeSelect && tableGroup) {
+            const toggleTableGroup = () => {
+                tableGroup.style.display = orderTypeSelect.value === 'Dine-in' ? 'block' : 'none';
+            };
+            orderTypeSelect.addEventListener('change', toggleTableGroup);
+            toggleTableGroup();
+        }
+
         const sections = document.querySelectorAll('.category-section');
         const navLinks = document.querySelectorAll('.category-link');
 
